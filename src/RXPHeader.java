@@ -15,14 +15,14 @@ public class RXPHeader {
     private byte[] header;
 
     public RXPHeader() {
-        this(new byte[16]);
+        this(new byte[20]);
     }
 
-    public RXPHeader(byte[] headerArray) {
-        if (headerArray.length != 16) {
-            header = new byte[16];
+    public RXPHeader(byte[] headerArr) {
+        if (headerArr.length != 20) {
+            header = new byte[20];
         } else {
-            header = headerArray;
+            header = headerArr;
         }
     }
 
@@ -30,18 +30,18 @@ public class RXPHeader {
         return (int) (header[SRC] << 8 & 0xFF00 | header[SRC + 1] & 0x00FF);
     }
 
-    public void setSource(int portNumber) {
-        header[SRC] = (byte) ((portNumber & 0xFF00) >> 8);
-        header[SRC + 1] = (byte) (portNumber & 0x00FF);
+    public void setSource(int srcPort) {
+        header[SRC] = (byte) ((srcPort & 0xFF00) >> 8);
+        header[SRC + 1] = (byte) (srcPort & 0x00FF);
     }
 
     public int getDestination() {
         return (int) (header[DST] << 8 & 0xFF00 | header[DST + 1] & 0x00FF);
     }
 
-    public void setDestination(int portNumber) {
-        header[DST] = (byte) ((portNumber & 0xFF00) >> 8);
-        header[DST + 1] = (byte) (portNumber & 0x00FF);
+    public void setDestination(int dstPort) {
+        header[DST] = (byte) ((dstPort & 0xFF00) >> 8);
+        header[DST + 1] = (byte) (dstPort & 0x00FF);
     }
 
     public int getSeqNum() {
@@ -49,9 +49,9 @@ public class RXPHeader {
                 header[SEQ + 1] & 0x00FF);
     }
 
-    public void setSeqNum(int sequenceNumber) {
-        header[SEQ] = (byte) ((sequenceNumber & 0xFF00) >> 8);
-        header[SEQ + 1] = (byte) (sequenceNumber & 0x00FF);
+    public void setSeqNum(int seqNum) {
+        header[SEQ] = (byte) ((seqNum & 0xFF00) >> 8);
+        header[SEQ + 1] = (byte) (seqNum & 0x00FF);
     }
 
     public int getAckNum() {
@@ -59,9 +59,9 @@ public class RXPHeader {
                 header[ACK + 1] & 0x00FF);
     }
 
-    public void setAckNum(int ackNumber) {
-        header[ACK] = (byte) ((ackNumber & 0x0000FF00) >> 8);
-        header[ACK + 1] = (byte) (ackNumber & 0x000000FF);
+    public void setAckNum(int ackNum) {
+        header[ACK] = (byte) ((ackNum & 0x0000FF00) >> 8);
+        header[ACK + 1] = (byte) (ackNum & 0x000000FF);
     }
 
     public int getWindow() {
@@ -117,7 +117,6 @@ public class RXPHeader {
         header[CHKSUM + 2] = (byte) ((checksum & 0x0000FF00) >> 8);
         header[CHKSUM + 3] = (byte) (checksum & 0x000000FF);
     }
-
 
     public byte[] getHeaderBytes() {
         return header;
