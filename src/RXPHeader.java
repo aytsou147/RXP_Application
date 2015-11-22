@@ -104,6 +104,10 @@ public class RXPHeader {
         return ((header[FLAG] & 0b00001000) != 0);
     }
 
+    public boolean isLAST() {
+        return ((header[FLAG] & 0b00000100) != 0);
+    }
+
     public int getChecksum() {
         return (int) (header[CHKSUM] << 24 & 0xFF000000 |
                 header[CHKSUM + 1] << 16 & 0x00FF0000 |

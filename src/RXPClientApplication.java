@@ -92,7 +92,7 @@ public class RXPClientApplication {
                                     byte[] file = RXPHelpers.getFileBytes(filePath);
                                     if (file != null) {
                                         client.sendName(fileName);
-                                        success = client.startUpload(RXPHelpers.getFileBytes(filePath));
+                                        success = client.upload(RXPHelpers.getFileBytes(filePath));
                                     } else {
                                         System.out.println("File does not exist");
                                     }

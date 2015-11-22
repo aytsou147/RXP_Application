@@ -56,15 +56,6 @@ public class RXPHelpers {
     }
 
 
-//    public static DatagramPacket setHeader(DatagramPacket packet, RXPHeader header) {
-//        byte[] headerBytes = header.getHeaderBytes();
-//        byte[] packetData = packet.getData();
-//        System.arraycopy(headerBytes, 0, packetData, 0, HEADER_SIZE);
-//        packet.setData(packetData);
-//
-//        return packet;
-//    }
-
     public static byte[] getFileBytes(String pathName) {
         Path path = Paths.get(pathName);
         byte[] data = null;
