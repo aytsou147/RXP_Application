@@ -11,7 +11,7 @@ public class RXPClient {
 
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE = 496;
-    private static final int HEADER_SIZE = 16; //TODO
+    private static final int HEADER_SIZE = 16;
     private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
     private ClientState state;
@@ -23,7 +23,7 @@ public class RXPClient {
 
     private int timeout = 5000;    // ms
 
-    //private byte[] window = new byte[MAX_SEQ_NUM];
+    private byte[] window = new byte[MAX_SEQ_NUM];
     private int seqNum, ackNum, windowSize, bytesRemaining;
     private String pathName = "";
     private byte[] fileData;
@@ -31,17 +31,17 @@ public class RXPClient {
     private ArrayList<byte[]> bytesReceived;
     private String fileName;
 
-    public RXPClient() {
-        this.clientPort = 3251;
-        this.serverPort = 3252;
-        try {
-            this.clientIpAddress = InetAddress.getLocalHost();
-            this.serverIpAddress = InetAddress.getLocalHost();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        state = ClientState.CLOSED;
-    }
+//    public RXPClient() {
+//        this.clientPort = 3251;
+//        this.serverPort = 3252;
+//        try {
+//            this.clientIpAddress = InetAddress.getLocalHost();
+//            this.serverIpAddress = InetAddress.getLocalHost();
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        }
+//        state = ClientState.CLOSED;
+//    }
 
     public RXPClient(int clientPort, String serverIpAddress, int serverPort) {
         this.clientPort = clientPort;
@@ -54,6 +54,7 @@ public class RXPClient {
         }
         rand = new Random();
         seqNum = rand.nextInt(MAX_SEQ_NUM);
+        //TODO what is this ^^
         state = ClientState.CLOSED;
     }
 
@@ -73,21 +74,21 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RXPHeader liveHeader = new RXPHeader();
-        liveHeader.setSource(clientPort);
-        liveHeader.setDestination(serverPort);
-        liveHeader.setSeqNum(seqNum);
-        liveHeader.setAckNum(ackNum);
-        liveHeader.setFlags(true, false, false, false, false); //setting LIVE flag on
-        liveHeader.setChecksum(PRECHECKSUM);
-        liveHeader.setWindow(DATA_SIZE);
+        RXPHeader synHeader = new RXPHeader();
+        synHeader.setSource(clientPort);
+        synHeader.setDestination(serverPort);
+        synHeader.setSeqNum(seqNum);
+        synHeader.setAckNum(ackNum);
+        synHeader.setFlags(false, true, false, false, false); //setting SYN flag on
+        synHeader.setWindow(DATA_SIZE);
         byte[] data = new byte[DATA_SIZE];
-        byte[] headerBytes = liveHeader.getHeaderBytes();
+        synHeader.setChecksum(data);
+        byte[] headerBytes = synHeader.getHeaderBytes();
         byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket setupPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
-        // Sending LIVE packet and receiving ACK
+        // Sending SYN packet and receiving SYN ACK with challenge string
 
         try {
             clientSocket.setSoTimeout(timeout);
@@ -109,10 +110,10 @@ public class RXPClient {
                     continue;
                 }
 
-                // Assuming valid and Acknowledged
-                if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast()) {
-					System.out.println("Received challenge");
-                    //setupPacket = handShakeLiveAck(receivePacket); //TODO
+                // Assuming valid and SYN, ACK
+                if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {
+                    System.out.println("Received challenge");
+                    break;
                 }
             } catch (SocketTimeoutException s) {
                 System.out.println("Timeout, resending..");
@@ -125,6 +126,62 @@ public class RXPClient {
                 return false;
             }
 
+        }
+
+
+        // Setup hash Header
+        RXPHeader hashHeader = new RXPHeader();
+        hashHeader.setSource(clientPort);
+        hashHeader.setDestination(serverPort);
+        hashHeader.setSeqNum(seqNum);
+        hashHeader.setAckNum(ackNum);
+        hashHeader.setFlags(true, false, false, false, false); //setting ACK flag on
+        hashHeader.setWindow(DATA_SIZE);
+        byte[] datahash = RXPHelpers.getHash(RXPHelpers.extractData(receivePacket));
+        hashHeader.setChecksum(data);
+        byte[] hashHeaderBytes = hashHeader.getHeaderBytes();
+        byte[] hashpacket = RXPHelpers.combineHeaderData(headerBytes, data);
+
+        DatagramPacket hashPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
+
+        // Sending ACK packet with hash and receiving ACK for establishment
+
+        try {
+            clientSocket.setSoTimeout(timeout);
+        } catch (SocketException e1) {
+            e1.printStackTrace();
+        }
+
+
+        tries = 0;
+        state = ClientState.HASH_SENT;
+        while (state != ClientState.ESTABLISHED) {
+            try {
+                clientSocket.send(hashPacket);
+                clientSocket.receive(receivePacket);
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+                if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
+                {
+                    System.out.println("CORRUPTED");
+                    continue;
+                }
+
+                // Assuming valid and ACK
+                if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
+                    System.out.println("Established");
+                    state = ClientState.ESTABLISHED
+                    break;
+                }
+            } catch (SocketTimeoutException s) {
+                System.out.println("Timeout, resending..");
+                if (tries++ >= 5) {
+                    System.out.println("Unsuccessful Connection");
+                    return false;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
         }
         return true;
     }
