@@ -19,8 +19,8 @@ public class RXPHeader {
     }
 
     public RXPHeader(byte[] headerArr) {
-        if (headerArr.length != 20) {
-            header = new byte[20];
+        if (headerArr.length != 16) {
+            header = new byte[16];
         } else {
             header = headerArr;
         }
@@ -111,11 +111,8 @@ public class RXPHeader {
                 header[CHKSUM + 3] & 0x000000FF);
     }
 
-    public void setChecksum(int checksum) {
-        header[CHKSUM] = (byte) ((checksum & 0xFF000000) >> 24);
-        header[CHKSUM + 1] = (byte) ((checksum & 0x00FF0000) >> 16);
-        header[CHKSUM + 2] = (byte) ((checksum & 0x0000FF00) >> 8);
-        header[CHKSUM + 3] = (byte) (checksum & 0x000000FF);
+    public void setChecksum(byte[] data) {
+        //TODO
     }
 
     public byte[] getHeaderBytes() {

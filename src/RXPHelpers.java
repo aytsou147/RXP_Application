@@ -10,19 +10,16 @@ import java.util.Arrays;
 
 
 public class RXPHelpers {
-    private static final int CHECKSUM = 13566144;
-    //private static final int PRECHECKSUM 	= 3251;
-    private static final int PACKET_SIZE = 1024;
-    //private static final int DATA_SIZE		= 1004;
-    private static final int HEADER_SIZE = 20;
-    //private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
+
+    private static final int PACKET_SIZE = 512;
+    private static final int DATA_SIZE = 496;
+    private static final int HEADER_SIZE = 16;
 
 
     public static byte[] combineHeaderData(byte[] headerBytes, byte[] data) {
 
         byte[] packetBytes = new byte[PACKET_SIZE];
-        //bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-        System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);        // copying header
+        System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);
         System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data.length);
 
         return packetBytes;
@@ -31,21 +28,11 @@ public class RXPHelpers {
     public static byte[] extractData(DatagramPacket receivePacket) {
         RXPHeader receiveHeader = getHeader(receivePacket);
         int data_length = receiveHeader.getWindow();
-
+        //TODO what the heck is going on here
         byte[] extractedData = new byte[data_length];
         byte[] packet = receivePacket.getData();
 
         System.arraycopy(packet, HEADER_SIZE, extractedData, 0, data_length);
-
-        return extractedData;
-    }
-
-    public static byte[] extractData(DatagramPacket receivePacket, int headerSize, int dataSize) {
-
-        byte[] extractedData = new byte[dataSize];
-        byte[] packet = receivePacket.getData();
-
-        System.arraycopy(packet, HEADER_SIZE, extractedData, 0, dataSize);
 
         return extractedData;
     }
@@ -55,24 +42,13 @@ public class RXPHelpers {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
         byte[] data = extractData(packet);
+        //TODO make checksum from the extracted data to make comparision
 
-        return (CheckSum.getChecksum(headerChecksum) == CHECKSUM);
-    }
-
-    public static boolean isValidPacketHeader(RXPHeader header) {
-        int headerChecksum = header.getChecksum();
-        return (CheckSum.getChecksum(headerChecksum) == CHECKSUM);
-
-        //check for hashCode
-
+        return (headerChecksum == Checksum(data));
     }
 
     public static RXPHeader getHeader(DatagramPacket receivePacket) {
-        return new RXPHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
-    }
-
-    public static RXPHeader getHeader(DatagramPacket receivePacket, int headerSize) {
-        return new RXPHeader(Arrays.copyOfRange(receivePacket.getData(), 0, headerSize));
+        return new RXPHeader(Arrays.copyOfRange(receivePacket.getData(), 0, HEADER_SIZE));
     }
 
 
@@ -113,5 +89,11 @@ public class RXPHelpers {
             e.printStackTrace();
         }
         return file;
+    }
+
+    public int CheckSum(byte[] data) {
+        //TODO checksum algorithm
+        int result;
+        return result;
     }
 }

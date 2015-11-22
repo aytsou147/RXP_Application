@@ -9,12 +9,10 @@ import java.util.TimerTask;
 
 public class RXPClient {
 
-    //private static final int CHECKSUM = 13566144;
-    //private static final int PRECHECKSUM = 3251;
     private static final int PACKET_SIZE = 512;
-    private static final int DATA_SIZE = 418;
-    //private static final int HEADER_SIZE = 20; //TODO
-    //private static final int MAX_SEQ_NUM = (int) 0xFFFF;
+    private static final int DATA_SIZE = 496;
+    private static final int HEADER_SIZE = 16; //TODO
+    private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
     private ClientState state;
 
@@ -85,7 +83,7 @@ public class RXPClient {
         liveHeader.setWindow(DATA_SIZE);
         byte[] data = new byte[DATA_SIZE];
         byte[] headerBytes = liveHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(headerBytes, data);
+        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket setupPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
@@ -104,8 +102,8 @@ public class RXPClient {
             try {
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
-                RXPHeader receiveHeader = RTPTools.getHeader(receivePacket);
-                if (!RTPTools.isValidPacketHeader(receivePacket))    //Corrupted
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+                if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
                 {
                     System.out.println("CORRUPTED");
                     continue;
@@ -218,7 +216,7 @@ public class RXPClient {
             try {
                 clientSocket.send(sendingPacket);
                 clientSocket.receive(receivePacket);
-                RXPHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
 //					System.out.println("Is not valid");
@@ -306,7 +304,7 @@ public class RXPClient {
         byte[] data = fileName.getBytes();
 
         byte[] headerBytes = dlHeader.getHeaderBytes();
-        byte[] sendPacket = RTPTools.combineHeaderData(headerBytes, data);
+        byte[] sendPacket = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket dlPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);
         int currPacket = 0;
@@ -319,7 +317,7 @@ public class RXPClient {
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
                 boolean isLast = receiveHeader.isLast();
-                if (!RTPTools.isValidPacketHeader(receivePacket)) {
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
 //					System.out.println("CORRUPTED in " + state);
                     continue;
                 }
@@ -375,17 +373,17 @@ public class RXPClient {
 
 
     private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum, boolean first) throws IOException {
-        RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
         if (!first) {
             // extracts and adds data to ArrayList of byte[]s
-            byte[] data = RTPTools.extractData(receivePacket);
+            byte[] data = RXPHelpers.extractData(receivePacket);
             bytesReceived.add(data);
         } else {
             bytesReceived = new ArrayList<byte[]>();
         }
 
-        RTPPacketHeader dataAckHeader = new RTPPacketHeader();
+        RXPHeader dataAckHeader = new RXPHeader();
         dataAckHeader.setSource(clientPort);
         dataAckHeader.setDestination(serverPort);
         dataAckHeader.setChecksum(PRECHECKSUM);
@@ -401,9 +399,8 @@ public class RXPClient {
 
         byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
         dataAckHeader.setWindow(dataBytes.length);
-        dataAckHeader.setHashCode(CheckSum.getHashCode(dataBytes));
         byte[] dlAckHeaderBytes = dataAckHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(dlAckHeaderBytes, dataBytes);
+        byte[] packet = RXPHelpers.combineHeaderData(dlAckHeaderBytes, dataBytes);
 
 
         DatagramPacket sendPacket = new DatagramPacket
@@ -430,16 +427,13 @@ public class RXPClient {
         // Copy last data
         System.arraycopy(bytesReceived.get(bufferLength - 1), 0, fileData, (bufferLength - 1) * DATA_SIZE, lastByteArrayLength);
 
-        // I RUN LINUX
         String fileDir = System.getProperty("user.dir") + "/" + fileName;
-        //System.out.println(fileDir);
-        RTPTools.getFileFromBytes(fileDir, fileData);
-//		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", fileData);
 
-        //clearing out byte received buffer and file data for next uploads
+        RXPHelpers.getFileFromBytes(fileDir, fileData);
+
+        //clearing buffer
         fileData = null;
         bytesReceived = new ArrayList<byte[]>();
-        //System.out.println("EXIT ASSEMBLE");
         return true;
     }
 
@@ -452,7 +446,7 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup header for the DIE packet
-        RTPPacketHeader dieHeader = new RTPPacketHeader();
+        RXPHeader dieHeader = new RXPHeader();
         dieHeader.setSource(clientPort);
         dieHeader.setDestination(serverPort);
         dieHeader.setSeqNum(0); //should have last seq num
@@ -473,10 +467,10 @@ public class RXPClient {
                 clientSocket.send(teardownPacket);
                 clientSocket.receive(receivePacket);
 
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
                 //System.out.println(receiveHeader.getSeqNum());
-                if (!RTPTools.isValidPacketHeader(receiveHeader)) {
+                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
                     continue;
                 }
                 if (receiveHeader.isDie() && receiveHeader.isAck() && !receiveHeader.isLast()) {
@@ -501,8 +495,8 @@ public class RXPClient {
         while (state != ClientState.TIME_WAIT || timedTaskRun) {
             try {
                 clientSocket.receive(receivePacket);
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-                if (!RTPTools.isValidPacketHeader(receiveHeader)) {
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
                     continue;
                 }
                 if (receiveHeader.isDie() && receiveHeader.isLast()) {
@@ -536,7 +530,7 @@ public class RXPClient {
      */
     private void sendCloseAckState() throws IOException {
         //makes new ACK header
-        RTPPacketHeader ackHeader = new RTPPacketHeader();
+        RXPHeader ackHeader = new RXPHeader();
         ackHeader.setSource(clientPort);
         ackHeader.setDestination(serverPort);
         ackHeader.setChecksum(PRECHECKSUM);
@@ -583,10 +577,10 @@ public class RXPClient {
                 sendDieCloseState(); //send the DIE, LAST
                 clientSocket.receive(receivePacket);
 
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket); // receive the last DIE, ACK
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket); // receive the last DIE, ACK
 
                 // Checksum validation for data received from client
-                if (!RTPTools.isValidPacketHeader(receiveHeader)) {
+                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
                     // is not Valid Packet, send back
                     // set same flags but ack is false
                     // send same packet as received
@@ -620,7 +614,7 @@ public class RXPClient {
 
     private void sendAckCloseState() throws IOException {
         // DIE Ack Header
-        RTPPacketHeader dieAckHeader = new RTPPacketHeader();
+        RXPHeader dieAckHeader = new RXPHeader();
         dieAckHeader.setSource(clientPort);
         dieAckHeader.setDestination(serverPort);
         dieAckHeader.setChecksum(PRECHECKSUM);
@@ -630,7 +624,7 @@ public class RXPClient {
         byte[] data = new byte[DATA_SIZE];
         dieAckHeader.setHashCode(CheckSum.getHashCode(data));
         byte[] headerBytes = dieAckHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(headerBytes, data);
+        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket sendPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
@@ -640,7 +634,7 @@ public class RXPClient {
 
     private void sendDieCloseState() throws IOException {
         // Setup header for the DIE packet
-        RTPPacketHeader dieHeader = new RTPPacketHeader();
+        RXPHeader dieHeader = new RXPHeader();
         dieHeader.setSource(clientPort);
         dieHeader.setDestination(serverPort);
         dieHeader.setSeqNum(seqNum); //should have last seq num
@@ -651,7 +645,7 @@ public class RXPClient {
         byte[] data = new byte[DATA_SIZE];
         dieHeader.setHashCode(CheckSum.getHashCode(data));
         byte[] headerBytes = dieHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(headerBytes, data);
+        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket terminatePacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
@@ -667,13 +661,13 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
         try {
             clientSocket.receive(receivePacket);
-            if (!RTPTools.isValidPacketHeader(receivePacket))    //Corrupted
+            if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
             {
                 //System.out.println("RECEIVED");
                 return false;
             }
 
-            RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+            RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
             // Assuming valid and Acknowledged, server has sent DIEco
             if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()) {
                 return true;
@@ -688,11 +682,11 @@ public class RXPClient {
     }
 
     public boolean checkServerRequestsTermination(DatagramPacket receivePacket) {
-        if (!RTPTools.isValidPacketHeader(receivePacket))    //Corrupted
+        if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
         {
             return false;
         }
-        RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
         // Assuming valid and Acknowledged, server has sent DIE
         return (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst()
                 && !receiveHeader.isLive());

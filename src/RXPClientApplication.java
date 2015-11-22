@@ -10,12 +10,13 @@ public class RXPClientApplication {
     private static final int NETEMUPORT = 8000;
     private static final int CLIENTPORT = 3250;
     private static int netEmuPort, clientPort;
-    private static RTPClient client;
+    private static RXPClient client;
 
     public static void main(String[] args) {
         //scan in arguments
         Scanner scan = new Scanner(System.in);
-
+        boolean connected = false;
+        boolean downloaded = false;
         if (args.length > 0 && args[0].equalsIgnoreCase("FXA-client")) {
             if (args.length > 3) {
                 try {
@@ -24,7 +25,7 @@ public class RXPClientApplication {
                     clientPort = Integer.parseInt(args[1]);
 
                     //A is the IP address of NetEMU
-                    netEmuIpAddress = args[2];
+                    String netEmuIpAddress = args[2];
 
                     //P is the UDP port of NetEMU
                     netEmuPort = Integer.parseInt(args[3]);
@@ -88,10 +89,10 @@ public class RXPClientApplication {
                                     String filePath = System.getProperty("user.dir") + "/" + fileName;
                                     System.out.println(filePath);
                                     boolean success = false;
-                                    byte[] file = getFileBytes(filePath);
+                                    byte[] file = RXPHelpers.getFileBytes(filePath);
                                     if (file != null) {
                                         client.sendName(fileName);
-                                        success = client.startUpload(getFileBytes(filePath));
+                                        success = client.startUpload(RXPHelpers.getFileBytes(filePath));
                                     } else {
                                         System.out.println("File does not exist");
                                     }
@@ -127,9 +128,9 @@ public class RXPClientApplication {
                                 if (split.length > 1) {
                                     try {
                                         int size = Integer.parseInt(split[1]);
-                                        client.setWindowSize(size);  //change client's max window size
+                                        client.setWindowSize(size);  //change client's window size
                                     } catch (NumberFormatException e) {
-                                        System.err.println("Invalid window size.");
+                                        System.err.println("Invalid win size.");
                                     }
                                 } else {
                                     System.err.println("You need another argument after window");
@@ -137,7 +138,7 @@ public class RXPClientApplication {
                                 break;
                             }
                             default: {
-                                System.err.println("Invalid command.");
+                                System.err.println("Invalid command");
                                 break;
                             }
                         }
