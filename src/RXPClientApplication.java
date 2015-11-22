@@ -1,11 +1,7 @@
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class RXPClientApplication {
@@ -162,7 +158,7 @@ public class RXPClientApplication {
             }
 
         } catch (IOException e) {
-
+            e.printStackTrace();
         }
 
 
@@ -172,35 +168,5 @@ public class RXPClientApplication {
             e.printStackTrace();
         }
         System.exit(0);
-    }
-
-    public static byte[] getFileBytes(String pathName) {
-        Path path = Paths.get(pathName);
-        byte[] data = null;
-        try {
-            data = Files.readAllBytes(path);
-        } catch (NoSuchFileException e1) {
-            return null;
-        } catch (IOException e) {
-            System.err.println("File could not be read");
-            e.printStackTrace();
-        }
-        return data;
-    }
-
-    public static File getFileFromBytes(String pathname, byte[] data) {
-        File file = new File(pathname);
-        try (FileOutputStream fop = new FileOutputStream(file)) {
-            // if file doesn't exists, then create it
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-            fop.write(data);
-            fop.flush();
-            fop.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return file;
     }
 }

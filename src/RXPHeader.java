@@ -15,12 +15,12 @@ public class RXPHeader {
     private byte[] header;
 
     public RXPHeader() {
-        this(new byte[20]);
+        this(new byte[16]);
     }
 
     public RXPHeader(byte[] headerArray) {
-        if (headerArray.length != 20) {
-            header = new byte[20];
+        if (headerArray.length != 16) {
+            header = new byte[16];
         } else {
             header = headerArray;
         }

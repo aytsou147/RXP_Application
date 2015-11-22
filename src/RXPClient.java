@@ -19,7 +19,7 @@ public class RXPClient {
     private ClientState state;
 
     private int clientPort, serverPort;
-   // private InetAddress clientIpAddress, serverIpAddress;
+    private InetAddress clientIpAddress, serverIpAddress;
     private DatagramSocket clientSocket;
     private Random rand;
 
@@ -33,7 +33,7 @@ public class RXPClient {
     private ArrayList<byte[]> bytesReceived;
     private String fileName;
 
-    public RTPClient() {
+    public RXPClient() {
         this.clientPort = 3251;
         this.serverPort = 3252;
         try {
@@ -75,7 +75,7 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RTPPacketHeader liveHeader = new RTPPacketHeader();
+        RXPHeader liveHeader = new RXPHeader();
         liveHeader.setSource(clientPort);
         liveHeader.setDestination(serverPort);
         liveHeader.setSeqNum(seqNum);
@@ -84,7 +84,6 @@ public class RXPClient {
         liveHeader.setChecksum(PRECHECKSUM);
         liveHeader.setWindow(DATA_SIZE);
         byte[] data = new byte[DATA_SIZE];
-        liveHeader.setHashCode(CheckSum.getHashCode(data));
         byte[] headerBytes = liveHeader.getHeaderBytes();
         byte[] packet = RTPTools.combineHeaderData(headerBytes, data);
 
@@ -96,8 +95,6 @@ public class RXPClient {
             clientSocket.setSoTimeout(timeout);
         } catch (SocketException e1) {
             e1.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
 
 
@@ -107,7 +104,7 @@ public class RXPClient {
             try {
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RTPTools.getHeader(receivePacket);
                 if (!RTPTools.isValidPacketHeader(receivePacket))    //Corrupted
                 {
                     System.out.println("CORRUPTED");
@@ -135,7 +132,7 @@ public class RXPClient {
     }
 
     private DatagramPacket handShakeHash(DatagramPacket receivePacket) throws IOException {
-        RTPPacketHeader ackHeader = new RTPPacketHeader();
+        RXPHeader ackHeader = new RXPHeader();
         ackHeader.setSource(clientPort);
         ackHeader.setDestination(serverPort);
         ackHeader.setChecksum(PRECHECKSUM);
@@ -144,9 +141,8 @@ public class RXPClient {
         ackHeader.setFlags(false, false, false, false, false); // ACK TODO
         ackHeader.setWindow(DATA_SIZE);
         byte[] sendData = new byte[DATA_SIZE];
-        ackHeader.setHashCode(CheckSum.getHashCode(sendData));
         byte[] liveAckHeaderBytes = ackHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, sendData);
+        byte[] packet = RXPHelpers.combineHeaderData(liveAckHeaderBytes, sendData);
 
         state = ClientState.HASH_SENT;
 
@@ -164,7 +160,7 @@ public class RXPClient {
 
     public void sendName(String s) {
         byte[] name = s.getBytes(Charset.forName("UTF-8"));
-        RTPPacketHeader nameHeader = new RTPPacketHeader();
+        RXPHeader nameHeader = new RXPHeader();
 
         nameHeader.setSource(clientPort);
         nameHeader.setDestination(serverPort);
@@ -174,9 +170,8 @@ public class RXPClient {
         nameHeader.setFlags(false, false, false, true, false); // LIVE FIRST
         nameHeader.setWindow(name.length);
         byte[] sendData = name;
-        nameHeader.setHashCode(CheckSum.getHashCode(sendData));
         byte[] liveAckHeaderBytes = nameHeader.getHeaderBytes();
-        byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, sendData);
+        byte[] packet = RXPHelpers.combineHeaderData(liveAckHeaderBytes, sendData);
 
 
         DatagramPacket sendingPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
@@ -188,9 +183,9 @@ public class RXPClient {
                 clientSocket.send(sendingPacket);
                 clientSocket.receive(receivePacket);
 
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-                if (!RTPTools.isValidPacketHeader(receivePacket)) {
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     continue;
                 }
                 if (receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isLive() && !receiveHeader.isLast() && !receiveHeader.isDie()) {
@@ -223,9 +218,9 @@ public class RXPClient {
             try {
                 clientSocket.send(sendingPacket);
                 clientSocket.receive(receivePacket);
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RTPTools.getHeader(receivePacket);
 
-                if (!RTPTools.isValidPacketHeader(receivePacket)) {
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
 //					System.out.println("Is not valid");
                     continue;
                 }
@@ -265,7 +260,7 @@ public class RXPClient {
         int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
         int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
 
-        RTPPacketHeader header = new RTPPacketHeader();
+        RXPHeader header = new RXPHeader();
         header.setSource(clientPort);
         header.setDestination(serverPort);
         header.setSeqNum(seqNum);
@@ -279,10 +274,9 @@ public class RXPClient {
         }
         byte[] data = new byte[data_length];
         System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
-        header.setHashCode(CheckSum.getHashCode(data));
 
         byte[] headerBytes = header.getHeaderBytes();
-        byte[] packetBytes = RTPTools.combineHeaderData(headerBytes, data);
+        byte[] packetBytes = RXPHelpers.combineHeaderData(headerBytes, data);
 
         DatagramPacket dataPacket = new DatagramPacket
                 (
@@ -301,7 +295,7 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RTPPacketHeader dlHeader = new RTPPacketHeader();
+        RXPHeader dlHeader = new RXPHeader();
         dlHeader.setSource(clientPort);
         dlHeader.setDestination(serverPort);
         dlHeader.setSeqNum(seqNum);
@@ -311,7 +305,6 @@ public class RXPClient {
         dlHeader.setWindow(fileName.getBytes().length);
         byte[] data = fileName.getBytes();
 
-        dlHeader.setHashCode(CheckSum.getHashCode(data));
         byte[] headerBytes = dlHeader.getHeaderBytes();
         byte[] sendPacket = RTPTools.combineHeaderData(headerBytes, data);
 
@@ -324,7 +317,7 @@ public class RXPClient {
                 clientSocket.send(dlPacket);
                 clientSocket.receive(receivePacket);
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
-                RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
                 boolean isLast = receiveHeader.isLast();
                 if (!RTPTools.isValidPacketHeader(receivePacket)) {
 //					System.out.println("CORRUPTED in " + state);
