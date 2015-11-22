@@ -1,0 +1,3 @@
+public enum ClientState {
+    CLOSED, SYN_SENT, HASH_SENT, ESTABLISHED, CLOSE_REQ, CLOSE_WAIT
+}

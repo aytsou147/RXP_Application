@@ -1,0 +1,3 @@
+public enum ServerState {
+    CLOSED, CHALLENGE_SENT, ESTABLISHED, CLOSE_REQ, CLOSE_WAIT
+}
