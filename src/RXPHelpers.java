@@ -6,7 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
+
 
 
 public class RXPHelpers {
@@ -44,7 +48,7 @@ public class RXPHelpers {
         byte[] data = extractData(packet);
         //TODO make checksum from the extracted data to make comparision
 
-        return (headerChecksum == Checksum(data));
+        return (headerChecksum == calcChecksum(data));
     }
 
     public static RXPHeader getHeader(DatagramPacket receivePacket) {
@@ -52,14 +56,14 @@ public class RXPHelpers {
     }
 
 
-    public static DatagramPacket setHeader(DatagramPacket packet, RXPHeader header) {
-        byte[] headerBytes = header.getHeaderBytes();
-        byte[] packetData = packet.getData();
-        System.arraycopy(headerBytes, 0, packetData, 0, HEADER_SIZE);
-        packet.setData(packetData);
-
-        return packet;
-    }
+//    public static DatagramPacket setHeader(DatagramPacket packet, RXPHeader header) {
+//        byte[] headerBytes = header.getHeaderBytes();
+//        byte[] packetData = packet.getData();
+//        System.arraycopy(headerBytes, 0, packetData, 0, HEADER_SIZE);
+//        packet.setData(packetData);
+//
+//        return packet;
+//    }
 
     public static byte[] getFileBytes(String pathName) {
         Path path = Paths.get(pathName);
@@ -91,9 +95,19 @@ public class RXPHelpers {
         return file;
     }
 
-    public int CheckSum(byte[] data) {
-        //TODO checksum algorithm
-        int result;
-        return result;
+    public int calcChecksum(byte[] data) {
+        Checksum result = new CRC32();
+        result.update(data, 0, data.length);
+        return (int) result.getValue();
+    }
+
+    public byte[] getHash(byte[] data) {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+
+        return md.digest(data);
+
+
+        //TODO md5hash algorithm
+
     }
 }

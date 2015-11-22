@@ -186,20 +186,22 @@ public class RXPClient {
         return true;
     }
 
-    private DatagramPacket handShakeHash(DatagramPacket receivePacket) throws IOException {
-        RXPHeader ackHeader = new RXPHeader();
+
+    private DatagramPacket handShakeLiveAck(DatagramPacket receivePacket) throws IOException {
+        RTPPacketHeader ackHeader = new RTPPacketHeader();
         ackHeader.setSource(clientPort);
         ackHeader.setDestination(serverPort);
         ackHeader.setChecksum(PRECHECKSUM);
         ackHeader.setSeqNum(seqNum);
         ackHeader.setAckNum(0);
-        ackHeader.setFlags(false, false, false, false, false); // ACK TODO
+        ackHeader.setFlags(true, false, false, false, true); // Live and last
         ackHeader.setWindow(DATA_SIZE);
         byte[] sendData = new byte[DATA_SIZE];
+        ackHeader.setHashCode(CheckSum.getHashCode(sendData));
         byte[] liveAckHeaderBytes = ackHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(liveAckHeaderBytes, sendData);
+        byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, sendData);
 
-        state = ClientState.HASH_SENT;
+        state = ClientState.SERVER_ACK_SENT;
 
         byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
         DatagramPacket ackPacket = new DatagramPacket
