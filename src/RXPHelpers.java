@@ -51,6 +51,11 @@ public class RXPHelpers {
         return (headerChecksum == calcChecksum(data));
     }
 
+    public static boolean isValidPort(DatagramPacket packet, int srcport, int dstport) {
+        RXPHeader header = getHeader(packet);
+        return header.getSource() == srcport && header.getDestination() == dstport;
+    }
+
     public static RXPHeader getHeader(DatagramPacket receivePacket) {
         return new RXPHeader(Arrays.copyOfRange(receivePacket.getData(), 0, HEADER_SIZE));
     }

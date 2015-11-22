@@ -73,14 +73,14 @@ public class RXPHeader {
         header[WIN + 1] = (byte) (windowSize & 0x00FF);
     }
 
-    public void setFlags(boolean ACK, boolean SYN, boolean FIN, boolean GET, boolean POST) {
+    public void setFlags(boolean ACK, boolean SYN, boolean FIN, boolean GET, boolean POST, boolean LAST) {
         byte flag = 0;
         if (ACK) flag |= (byte) (1 << 7);
         if (SYN) flag |= (byte) (1 << 6);
         if (FIN) flag |= (byte) (1 << 5);
         if (GET) flag |= (byte) (1 << 4);
         if (POST) flag |= (byte) (1 << 3);
-
+        if (LAST) flag |= (byte) (1 << 2);
         header[FLAG] = flag;
     }
 
