@@ -161,21 +161,15 @@ public class RXPClient {
     *
      */
     public void sendName(String s) {
-        byte[] name = s.getBytes(Charset.forName("UTF-8"));
-        RXPHeader nameHeader = new RXPHeader();
-
-        nameHeader.setSource(clientPort);
-        nameHeader.setDestination(serverPort);
-        nameHeader.setSeqNum(0);
-        nameHeader.setAckNum(0);
+        RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverPort, 0, 0);
         nameHeader.setFlags(false, false, false, false, true, false); // POST
-        nameHeader.setWindow(name.length); //TODO why set the window size to the length of the filename?
-        byte[] sendData = name;
+        byte[] sendData = s.getBytes(Charset.forName("UTF-8"));
+        ;
+        nameHeader.setWindow(sendData.length); //TODO why set the window size to the length of the filename?
         nameHeader.setChecksum(sendData);
-        byte[] sendHeaderbytes = nameHeader.getHeaderBytes();
-        byte[] namePacket = RXPHelpers.combineHeaderData(sendHeaderbytes, sendData);
+        // Make the packet
+        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, nameHeader, sendData);
 
-        DatagramPacket sendingPacket = new DatagramPacket(namePacket, PACKET_SIZE, serverIpAddress, serverPort);
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
         int tries = 0;
@@ -258,11 +252,9 @@ public class RXPClient {
         int byteLocation = initByteIndex * DATA_SIZE;
         int bytesRemaining = fileData.length - byteLocation;
 
-        RXPHeader header = new RXPHeader();
-        header.setSource(clientPort);
-        header.setDestination(serverPort);
-        header.setSeqNum(seqNum);
-        header.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+        RXPHeader header = RXPHelpers.initHeader(clientPort, serverPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
+        //TODO double check the seqNum and ackNum configuration ^
+
         int data_length;
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
             data_length = bytesRemaining;
@@ -272,15 +264,12 @@ public class RXPClient {
             header.setFlags(false, false, false, false, false, false);
         }
         header.setWindow(data_length); //TODO why is this the window size
-
         byte[] data = new byte[data_length];
-        header.setChecksum(data);
         System.arraycopy(fileData, initByteIndex * DATA_SIZE, data, 0, data_length);
+        header.setChecksum(data);
 
-        byte[] headerBytes = header.getHeaderBytes();
-        byte[] packetBytes = RXPHelpers.combineHeaderData(headerBytes, data);
-
-        DatagramPacket dataPacket = new DatagramPacket(packetBytes, PACKET_SIZE, serverIpAddress, serverPort);
+        // Make the packet
+        DatagramPacket dataPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, header, data);
         return dataPacket;
     }
 
@@ -293,20 +282,16 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RXPHeader requestHeader = new RXPHeader();
-        requestHeader.setSource(clientPort);
-        requestHeader.setDestination(serverPort);
-        requestHeader.setSeqNum(seqNum);
-        requestHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+
+        RXPHeader requestHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
         requestHeader.setFlags(false, false, false, true, false, false); // GET
         requestHeader.setWindow(fileName.getBytes().length);
         byte[] data = fileName.getBytes();
         requestHeader.setChecksum(data);
 
-        byte[] headerBytes = requestHeader.getHeaderBytes();
-        byte[] sendPacket = RXPHelpers.combineHeaderData(headerBytes, data);
+        // Make the packet
+        DatagramPacket requestPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, requestHeader, data);
 
-        DatagramPacket requestPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);
         int currPacket = 0;
         int tries = 0;
         boolean finDownload = false;
@@ -363,18 +348,14 @@ public class RXPClient {
     private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum) throws IOException {
         RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-
         // extracts and adds data to ArrayList of byte[]s
         byte[] data = RXPHelpers.extractData(receivePacket);
         bytesReceived.add(data);
 
-        RXPHeader ackHeader = new RXPHeader();
-        ackHeader.setSource(clientPort);
-        ackHeader.setDestination(serverPort);
         ackNum = receiveHeader.getSeqNum();
         seqNum = (seqNum + 1) % MAX_SEQ_NUM;
-        ackHeader.setSeqNum(seqNum);
-        ackHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+        RXPHeader ackHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
+        //TODO ^^ verify acknum and seqnum changes and entries into initHeader
         if (receiveHeader.isLAST()) {
             ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
         } else {
@@ -384,11 +365,8 @@ public class RXPClient {
         byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
         ackHeader.setChecksum(dataBytes);
         ackHeader.setWindow(dataBytes.length); //TODO why?
-        byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(ackHeaderBytes, dataBytes);
 
-
-        DatagramPacket sendPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, ackHeader, dataBytes);
         return sendPacket;
     }
 
