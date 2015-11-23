@@ -7,10 +7,10 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
-
 
 
 public class RXPHelpers {
@@ -75,26 +75,41 @@ public class RXPHelpers {
         return data;
     }
 
-    public static File getFileFromBytes(String pathname, byte[] data) {
-        File file = new File(pathname);
-        try (FileOutputStream fout = new FileOutputStream(file)) {
-            // if file doesn't exists, then create it
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-            fout.write(data);
-            fout.flush();
-            fout.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return file;
-    }
 
     public static byte[] getHash(byte[] data) {
         MessageDigest md = MessageDigest.getInstance("MD5");
 
         return md.digest(data);
+    }
+
+    public static boolean assembleFile(ArrayList<byte[]> bytesReceived, String fileName) {
+        int bufferLength = bytesReceived.size();
+        int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;    // Length of last data
+        int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;    // number of bytes in file
+
+        byte[] fileData = new byte[fileSize];
+        for (int i = 0; i < bufferLength - 1; i++) {
+            System.arraycopy(bytesReceived.get(i), 0, fileData, i * DATA_SIZE, DATA_SIZE);
+        }
+
+        // Copy last data
+        System.arraycopy(bytesReceived.get(bufferLength - 1), 0, fileData, (bufferLength - 1) * DATA_SIZE, lastByteArrayLength);
+
+        String fileDir = System.getProperty("user.dir") + "/" + fileName;
+
+        File file = new File(fileDir);
+        try (FileOutputStream fout = new FileOutputStream(file)) {
+            // if file doesn't exists, then create it
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            fout.write(fileData);
+            fout.flush();
+            fout.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     public int calcChecksum(byte[] data) {
