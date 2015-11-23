@@ -77,29 +77,29 @@ public class RXPHelpers {
 
     public static File getFileFromBytes(String pathname, byte[] data) {
         File file = new File(pathname);
-        try (FileOutputStream fop = new FileOutputStream(file)) {
+        try (FileOutputStream fout = new FileOutputStream(file)) {
             // if file doesn't exists, then create it
             if (!file.exists()) {
                 file.createNewFile();
             }
-            fop.write(data);
-            fop.flush();
-            fop.close();
+            fout.write(data);
+            fout.flush();
+            fout.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
         return file;
     }
 
+    public static byte[] getHash(byte[] data) {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+
+        return md.digest(data);
+    }
+
     public int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
         return (int) result.getValue(); //TODO not sure if we can just cast to int
-    }
-
-    public byte[] getHash(byte[] data) {
-        MessageDigest md = MessageDigest.getInstance("MD5");
-
-        return md.digest(data);
     }
 }

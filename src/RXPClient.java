@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.Timer;
 
 public class RXPClient {
 
@@ -355,33 +354,19 @@ public class RXPClient {
                 }
                 // Assuming valid and acked
                 if (!receiveHeader.isACK()) {
-                    continue;
+                    continue; //got ack packet for filename request, continue to download
                 }
 
-                if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast()) {
-                    dlPacket = receiveDataPacket(receivePacket, currPacket, true);
-                    this.fileName = fileName;
-                }
                 if (seqNum + 1 == receiveHeader.getAckNum()) {
-                    if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast()) {
-                        dlPacket = receiveDataPacket(receivePacket, currPacket, true);
-                        this.fileName = fileName;
-                    }
-                    // Downloading files
-                    else if (!receiveHeader.isLive() && !receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck()) {
-                        //System.out.println("Ack");
-                        currPacket++;
-                        dlPacket = receiveDataPacket(receivePacket, currPacket, false);
+                    requestPacket = receiveDataPacket(receivePacket, currPacket, true);
+                    clientSocket.send(requestPacket);
+                    this.fileName = fileName;
+                    currPacket++;
+
+                    if (receiveHeader.isLAST()) {
                         finDownload = isLast;
+                        break;
                     }
-                    // Cannot find file
-                    else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck()) {
-                        return false;
-                    } else {
-                        //System.out.println("SKIPP");
-                    }
-                } else {
-                    //System.out.println("SKIPP");
                 }
 
             } catch (SocketTimeoutException s) {
@@ -395,7 +380,7 @@ public class RXPClient {
                 return false;
             }
         }
-        System.out.println("Finishes downloading");
+        System.out.println("Finished downloading");
         return assembleFile();
     }
 
@@ -411,24 +396,24 @@ public class RXPClient {
             bytesReceived = new ArrayList<byte[]>();
         }
 
-        RXPHeader dataAckHeader = new RXPHeader();
-        dataAckHeader.setSource(clientPort);
-        dataAckHeader.setDestination(serverPort);
-
+        RXPHeader ackHeader = new RXPHeader();
+        ackHeader.setSource(clientPort);
+        ackHeader.setDestination(serverPort);
         ackNum = receiveHeader.getSeqNum();
         seqNum = (seqNum + 1) % MAX_SEQ_NUM;
-        dataAckHeader.setSeqNum(seqNum);
-        dataAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
-        dataAckHeader.setFlags(true, false, false, true, false);    // ACK
-        if (receiveHeader.isLast()) {
-            dataAckHeader.setFlags(false, false, true, false, true); // ACK LAST
+        ackHeader.setSeqNum(seqNum);
+        ackHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+        if (receiveHeader.isLAST()) {
+            ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
+        } else {
+            ackHeader.setFlags(true, false, false, true, false, false);    // ACK
         }
 
-        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
-        dataAckHeader.setChecksum(dataBytes);
-        dataAckHeader.setWindow(dataBytes.length);
-        byte[] dlAckHeaderBytes = dataAckHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(dlAckHeaderBytes, dataBytes);
+        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
+        ackHeader.setChecksum(dataBytes);
+        ackHeader.setWindow(dataBytes.length); //TODO why?
+        byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
+        byte[] packet = RXPHelpers.combineHeaderData(ackHeaderBytes, dataBytes);
 
 
         DatagramPacket sendPacket = new DatagramPacket
@@ -467,85 +452,10 @@ public class RXPClient {
 
 
     /**
-     * Once data transfer stops, performs connection teardown
+     * tear down connection
      */
-    public void teardown() {
-        byte[] receiveMessage = new byte[PACKET_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
-
-        // Setup header for the DIE packet
-        RXPHeader dieHeader = new RXPHeader();
-        dieHeader.setSource(clientPort);
-        dieHeader.setDestination(serverPort);
-        dieHeader.setSeqNum(0); //should have last seq num
-        dieHeader.setAckNum(0);
-        dieHeader.setFlags(false, true, false, false, false); //setting DIE flag on
-        dieHeader.setChecksum(PRECHECKSUM);
-        byte[] headerBytes = dieHeader.getHeaderBytes();
-
-        DatagramPacket teardownPacket = new DatagramPacket(headerBytes, HEADER_SIZE, serverIpAddress, serverPort);
-
-        // Sending DIE packet and receiving ACK
-
-        int tries = 0;
-        state = ClientState.DIE_WAIT_1;
-        while (state != ClientState.SERVER_ACK_SENT) {
-            try {
-                System.out.println("tries:" + tries);
-                clientSocket.send(teardownPacket);
-                clientSocket.receive(receivePacket);
-
-                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-
-                //System.out.println(receiveHeader.getSeqNum());
-                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
-                    continue;
-                }
-                if (receiveHeader.isDie() && receiveHeader.isAck() && !receiveHeader.isLast()) {
-                    //System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
-                    state = ClientState.SERVER_ACK_SENT;
-                }
-            } catch (SocketTimeoutException s) {
-                System.out.println("Timeout, resending");
-                if (tries++ >= 5) {
-                    System.out.println("Unsuccessful Connection");
-                    return;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        //entering the state where it waits for server to send DIE
-        state = ClientState.DIE_WAIT_2;
-        //System.out.println("State: DIE_WAIT_2");
-        tries = 0;
-        Timer timer = null;
-        while (state != ClientState.TIME_WAIT || timedTaskRun) {
-            try {
-                clientSocket.receive(receivePacket);
-                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
-                    continue;
-                }
-                if (receiveHeader.isDie() && receiveHeader.isLast()) {
-                    sendCloseAckState(); //sends the final ACK
-                    if (timer == null) {
-                        timer = new Timer();
-                        timer.schedule(new timedWaitTeardown(), 5 * 100); //timedwaitTeardown changes state and closes socket
-                    }
-                }
-            } catch (SocketTimeoutException s) {
-                System.out.println("Timeout, resending");
-                if (tries++ >= 5) {
-                    System.out.println("Unsuccessful Connection");
-                    return;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        //System.out.println("exit teardown");
+    public void tearDown() {
+        System.exit(0);
     }
 
 
@@ -559,9 +469,5 @@ public class RXPClient {
 
     public void setWindowSize(int window) {
         this.windowSize = window;
-    }
-
-    public void tearDown() {
-
     }
 }
