@@ -9,7 +9,6 @@ public class RXPClientApplication {
     private static final String NETEMUIP = "127.0.0.1";
     private static final int NETEMUPORT = 8000;
     private static final int CLIENTPORT = 3250;
-    private static int netEmuPort, clientPort;
     private static RXPClient client;
 
     public static void main(String[] args) {
@@ -22,13 +21,13 @@ public class RXPClientApplication {
                 try {
                     //fxa-client X A P
                     //X is the port the client will bind to
-                    clientPort = Integer.parseInt(args[1]);
+                    int clientPort = Integer.parseInt(args[1]);
 
                     //A is the IP address of NetEMU
                     String netEmuIpAddress = args[2];
 
                     //P is the UDP port of NetEMU
-                    netEmuPort = Integer.parseInt(args[3]);
+                    int netEmuPort = Integer.parseInt(args[3]);
 
                     System.out.println("Initializing RXPClient...");
                     client = new RXPClient(clientPort, netEmuIpAddress, netEmuPort);
@@ -53,7 +52,7 @@ public class RXPClientApplication {
         InputStreamReader fileInputStream = new InputStreamReader(System.in);
         BufferedReader bufferedReader = new BufferedReader(fileInputStream);
         try {
-            String s = new String("");
+            String s = "";
 
             while ((System.currentTimeMillis() >= end)) {
                 if (connected) {

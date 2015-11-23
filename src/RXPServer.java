@@ -88,6 +88,7 @@ public class RXPServer {
                 // HANDSHAKE PT 1: Receive SYN, send SYN+ACK and challenge string
                 if (receiveHeader.isSYN() && !receiveHeader.isACK()) {
                     sendChallenge();
+                    state = ServerState.CHALLENGE_SENT;
                 }
 
                 // HANDSHAKE PT 2: Receive ACK and challenge hash, send ACK
@@ -144,9 +145,14 @@ public class RXPServer {
             byte[] sendData = new byte[DATA_SIZE];
             DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientPort, sendHeader, sendData);
             serverSocket.send(sendPacket);
+            state = ServerState.ESTABLISHED;
         } else {
             // Refuse the connection
             System.out.println("Incorrect Auth");
         }
+    }
+
+    public boolean terminate() {
+        return true;
     }
 }
