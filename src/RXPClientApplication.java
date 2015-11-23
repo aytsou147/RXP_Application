@@ -57,13 +57,8 @@ public class RXPClientApplication {
 
             while ((System.currentTimeMillis() >= end)) {
                 if (connected) {
-                    if (client.checkServerRequestsTermination()) {
-                        if (client.terminateFromServer()) {
-                            System.out.println("Server was successfully terminated..");
-                            System.exit(0);
-                        } else {
-                            System.out.println("Server was not terminated");
-                        }
+                    if (client.getClientState() == ClientState.CLOSE_REQ || client.getClientState() == ClientState.CLOSE_WAIT) {
+                        System.out.println("Connection Terminating");
                     }
                 }
                 s = "";
@@ -144,7 +139,7 @@ public class RXPClientApplication {
                         }
                     } else if (s.equalsIgnoreCase("disconnect")) {
                         System.out.println("Disconnecting...");
-                        client.teardown();
+                        client.tearDown();
                         scan.close();
                         while (client.getClientState() != ClientState.CLOSED) {
                         }
@@ -161,7 +156,6 @@ public class RXPClientApplication {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
         try {
             bufferedReader.close();
