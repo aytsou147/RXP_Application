@@ -88,7 +88,6 @@ public class RXPClient {
             e1.printStackTrace();
         }
 
-
         int tries = 0;
         state = ClientState.SYN_SENT;
         while (state != ClientState.ESTABLISHED) {
@@ -117,9 +116,7 @@ public class RXPClient {
                 e.printStackTrace();
                 return false;
             }
-
         }
-
 
         // Setup hash Header
         RXPHeader hashHeader = new RXPHeader();
@@ -170,7 +167,6 @@ public class RXPClient {
         return true;
     }
 
-
     /*
     * sends name to server to prep server to receive upload
     *
@@ -189,7 +185,6 @@ public class RXPClient {
         nameHeader.setChecksum(sendData);
         byte[] sendHeaderbytes = nameHeader.getHeaderBytes();
         byte[] namePacket = RXPHelpers.combineHeaderData(sendHeaderbytes, sendData);
-
 
         DatagramPacket sendingPacket = new DatagramPacket(namePacket, PACKET_SIZE, serverIpAddress, serverPort);
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
@@ -261,7 +256,6 @@ public class RXPClient {
                 e.printStackTrace();
                 return false;
             }
-
         }
         fileData = null;
         return true;
@@ -274,7 +268,6 @@ public class RXPClient {
         // Setup header for the data packet
         int byteLocation = initByteIndex * DATA_SIZE;
         int bytesRemaining = fileData.length - byteLocation;
-
 
         RXPHeader header = new RXPHeader();
         header.setSource(clientPort);
@@ -298,13 +291,7 @@ public class RXPClient {
         byte[] headerBytes = header.getHeaderBytes();
         byte[] packetBytes = RXPHelpers.combineHeaderData(headerBytes, data);
 
-        DatagramPacket dataPacket = new DatagramPacket
-                (
-                        packetBytes,
-                        PACKET_SIZE,
-                        serverIpAddress,
-                        serverPort
-                );
+        DatagramPacket dataPacket = new DatagramPacket(packetBytes, PACKET_SIZE, serverIpAddress, serverPort);
         return dataPacket;
     }
 
@@ -350,7 +337,6 @@ public class RXPClient {
                 if (!receiveHeader.isACK()) {
                     continue; //got ack packet for filename request, continue to download
                 }
-
                 if (seqNum + 1 == receiveHeader.getAckNum()) {
 
                     requestPacket = receiveDataPacket(receivePacket, currPacket);
@@ -413,13 +399,7 @@ public class RXPClient {
         byte[] packet = RXPHelpers.combineHeaderData(ackHeaderBytes, dataBytes);
 
 
-        DatagramPacket sendPacket = new DatagramPacket
-                (
-                        packet,
-                        PACKET_SIZE,
-                        serverIpAddress,
-                        serverPort
-                );
+        DatagramPacket sendPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
         return sendPacket;
     }
 
@@ -430,14 +410,13 @@ public class RXPClient {
         System.exit(0);
     }
 
-
     public ClientState getClientState() {
         return state;
     }
 
-    public int getWindowSize() {
-        return windowSize;
-    }
+//    public int getWindowSize() {
+//        return windowSize;
+//    }
 
     public void setWindowSize(int window) {
         this.windowSize = window;
