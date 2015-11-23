@@ -68,7 +68,7 @@ public class RXPClientApplication {
                     if (split.length > 0 && !s.equals("disconnect")) {
                         switch (split[0]) {
                             case "connect": {
-                                if (!connected && client.setup()) {
+                                if (!connected && client.setupRXP()) {
                                     System.out.println("Client has successfully connected to the server");
                                     connected = true;
                                 } else {
@@ -140,8 +140,9 @@ public class RXPClientApplication {
                         System.out.println("Disconnecting...");
                         client.tearDown();
                         scan.close();
-                        while (client.getClientState() != ClientState.CLOSED) {
-                        }
+                        System.exit(0);
+//                        while (client.getClientState() != ClientState.CLOSED) {
+//                        }
                     } else {
                         System.err.println("Invalid command.");
                         System.exit(1);

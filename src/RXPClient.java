@@ -54,7 +54,7 @@ public class RXPClient {
      *
      * @throws IOException
      */
-    public boolean setup() {
+    public boolean setupRXP() {
         try {
             clientSocket = new DatagramSocket(clientPort, clientIpAddress);
         } catch (SocketException e) {
@@ -65,19 +65,14 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RXPHeader synHeader = new RXPHeader();
-        synHeader.setSource(clientPort);
-        synHeader.setDestination(serverPort);
-        synHeader.setSeqNum(seqNum);
-        synHeader.setAckNum(ackNum);
+
+        RXPHeader synHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
         synHeader.setFlags(false, true, false, false, false, false); //setting SYN flag on
-        synHeader.setWindow(DATA_SIZE);
         byte[] data = new byte[DATA_SIZE];
         synHeader.setChecksum(data);
-        byte[] headerBytes = synHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
+        // Make the packet
+        DatagramPacket setupPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, synHeader, data);
 
-        DatagramPacket setupPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
         // Sending SYN packet and receiving SYN ACK with challenge string
 
@@ -119,19 +114,13 @@ public class RXPClient {
         }
 
         // Setup hash Header
-        RXPHeader hashHeader = new RXPHeader();
-        hashHeader.setSource(clientPort);
-        hashHeader.setDestination(serverPort);
-        hashHeader.setSeqNum(seqNum);
-        hashHeader.setAckNum(ackNum);
+        RXPHeader hashHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
         hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
-        hashHeader.setWindow(DATA_SIZE);
         byte[] datahash = RXPHelpers.getHash(RXPHelpers.extractData(receivePacket));
-        hashHeader.setChecksum(data);
-        byte[] hashHeaderBytes = hashHeader.getHeaderBytes();
-        byte[] hashpacket = RXPHelpers.combineHeaderData(hashHeaderBytes, datahash);
+        hashHeader.setChecksum(datahash);
+        // Make the packet
+        DatagramPacket hashPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, hashHeader, datahash);
 
-        DatagramPacket hashPacket = new DatagramPacket(hashpacket, PACKET_SIZE, serverIpAddress, serverPort);
 
         // Sending ACK packet with hash and receiving ACK for establishment
         tries = 0;
