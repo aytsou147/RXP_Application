@@ -5,7 +5,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
-import java.util.TimerTask;
 
 public class RXPClient {
 
@@ -27,7 +26,6 @@ public class RXPClient {
     private int seqNum, ackNum, windowSize, bytesRemaining;
     private String pathName = "";
     private byte[] fileData;
-    private boolean timedTaskRun = false;
     private ArrayList<byte[]> bytesReceived;
     private String fileName;
 
@@ -52,9 +50,9 @@ public class RXPClient {
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
-        rand = new Random();
-        seqNum = rand.nextInt(MAX_SEQ_NUM);
-        //TODO what is this ^^
+
+        seqNum = 0;
+        ackNum = 0;
         state = ClientState.CLOSED;
     }
 
@@ -79,7 +77,7 @@ public class RXPClient {
         synHeader.setDestination(serverPort);
         synHeader.setSeqNum(seqNum);
         synHeader.setAckNum(ackNum);
-        synHeader.setFlags(false, true, false, false, false); //setting SYN flag on
+        synHeader.setFlags(false, true, false, false, false, false); //setting SYN flag on
         synHeader.setWindow(DATA_SIZE);
         byte[] data = new byte[DATA_SIZE];
         synHeader.setChecksum(data);
@@ -135,7 +133,7 @@ public class RXPClient {
         hashHeader.setDestination(serverPort);
         hashHeader.setSeqNum(seqNum);
         hashHeader.setAckNum(ackNum);
-        hashHeader.setFlags(true, false, false, false, false); //setting ACK flag on
+        hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
         hashHeader.setWindow(DATA_SIZE);
         byte[] datahash = RXPHelpers.getHash(RXPHelpers.extractData(receivePacket));
         hashHeader.setChecksum(data);
@@ -199,7 +197,7 @@ public class RXPClient {
         nameHeader.setDestination(serverPort);
         nameHeader.setSeqNum(0);
         nameHeader.setAckNum(0);
-        nameHeader.setFlags(false, false, false, false, true); // POST
+        nameHeader.setFlags(false, false, false, false, true, false); // POST
         nameHeader.setWindow(name.length); //TODO why set the window size to the length of the filename?
         byte[] sendData = name;
         nameHeader.setChecksum(sendData);
@@ -260,12 +258,12 @@ public class RXPClient {
                     continue;
                 }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
-                    terminateFromServer();
+                    tearDown();
                 }
                 if (seqNum == receiveHeader.getAckNum()) { //getting ack for previous packet
                     continue;
                 }
-                if (seqNum + 1 == receiveHeader.getAckNum()) {  //got the ack for this packet!
+                if (seqNum + 1 == receiveHeader.getAckNum()) {  //got the ack for this packet
                     seqNum = (seqNum + 1) % MAX_SEQ_NUM;
                     ackNum = receiveHeader.getSeqNum();
                     currPacket++;
@@ -279,27 +277,30 @@ public class RXPClient {
             }
 
         }
-
-        //TODO maybe write code to send a packet that says POST FIN to indicate last packet?
         return true;
     }
 
     private DatagramPacket createPacket(int startByteIndex) {
         // Setup header for the data packet
-        int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
-        int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
+        int byteLocation = startByteIndex * DATA_SIZE;
+        int bytesRemaining = fileData.length - byteLocation;
+
 
         RXPHeader header = new RXPHeader();
         header.setSource(clientPort);
         header.setDestination(serverPort);
         header.setSeqNum(seqNum);
         header.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
-        header.setWindow(data_length);
-        header.setFlags(false, false, false, false, false);
-        header.setWindow(data_length);
-        if (bytesRemaining <= DATA_SIZE) { // last packet
-            header.setFlags(false, false, false, false, true);
+        int data_length;
+        if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
+            data_length = bytesRemaining;
+            header.setFlags(false, false, false, false, false, true); // LAST flag
+        } else {
+            data_length = DATA_SIZE;
+            header.setFlags(false, false, false, false, false, false);
         }
+        header.setWindow(data_length); //TODO why is this the window size
+
         byte[] data = new byte[data_length];
         header.setChecksum(data);
         System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
@@ -318,49 +319,45 @@ public class RXPClient {
     }
 
 
-    public boolean startDownload(String fileName) {
-        //Send packet over requesting from server to download it
+    public boolean download(String fileName) {
+        //Send GET packet with filename
         byte[] receiveMessage = new byte[PACKET_SIZE];
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
         // Setup Initializing Header
-        RXPHeader dlHeader = new RXPHeader();
-        dlHeader.setSource(clientPort);
-        dlHeader.setDestination(serverPort);
-        dlHeader.setSeqNum(seqNum);
-        dlHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
-        dlHeader.setFlags(true, true, false, true, false); // LIVE DIE FIRST
-        dlHeader.setChecksum(PRECHECKSUM);
-        dlHeader.setWindow(fileName.getBytes().length);
+        RXPHeader requestHeader = new RXPHeader();
+        requestHeader.setSource(clientPort);
+        requestHeader.setDestination(serverPort);
+        requestHeader.setSeqNum(seqNum);
+        requestHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+        requestHeader.setFlags(false, false, false, true, false, false); // GET
+        requestHeader.setWindow(fileName.getBytes().length);
         byte[] data = fileName.getBytes();
+        requestHeader.setChecksum(data);
 
-        byte[] headerBytes = dlHeader.getHeaderBytes();
+        byte[] headerBytes = requestHeader.getHeaderBytes();
         byte[] sendPacket = RXPHelpers.combineHeaderData(headerBytes, data);
 
-        DatagramPacket dlPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);
+        DatagramPacket requestPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);
         int currPacket = 0;
         int tries = 0;
-        boolean finishedDownloading = false;
-        while (!finishedDownloading) {
+        boolean finDownload = false;
+        while (!finDownload) {
             try {
-                clientSocket.send(dlPacket);
+                clientSocket.send(requestPacket);
                 clientSocket.receive(receivePacket);
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                boolean isLast = receiveHeader.isLast();
+                boolean isLast = receiveHeader.isLAST();
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
-//					System.out.println("CORRUPTED in " + state);
+//					System.out.println("Dropping corrupted packet);
                     continue;
                 }
-                // Assuming valid and Acknowledged\
-                if (!receiveHeader.isAck()) {
+                // Assuming valid and acked
+                if (!receiveHeader.isACK()) {
                     continue;
                 }
-//				boolean value = checkServerRequestsTermination(receivePacket);
-//				System.out.println("Vaue of termination is: " + value);
-//				if(checkServerRequestsTermination(receivePacket)){
-//					terminateFromServer();
-//				}
+
                 if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast()) {
                     dlPacket = receiveDataPacket(receivePacket, currPacket, true);
                     this.fileName = fileName;
@@ -375,7 +372,7 @@ public class RXPClient {
                         //System.out.println("Ack");
                         currPacket++;
                         dlPacket = receiveDataPacket(receivePacket, currPacket, false);
-                        finishedDownloading = isLast;
+                        finDownload = isLast;
                     }
                     // Cannot find file
                     else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck()) {
@@ -552,38 +549,6 @@ public class RXPClient {
     }
 
 
-    /**
-     * This method takes a packet and creates it for the last
-     * ACK packet sent in the 4-way handshake in the connection teardown
-     *
-     * @param receivePacket
-     * @return
-     */
-    private void sendCloseAckState() throws IOException {
-        //makes new ACK header
-        RXPHeader ackHeader = new RXPHeader();
-        ackHeader.setSource(clientPort);
-        ackHeader.setDestination(serverPort);
-        ackHeader.setChecksum(PRECHECKSUM);
-        ackHeader.setSeqNum(0);
-        ackHeader.setAckNum(0);
-
-        state = ClientState.TIME_WAIT;
-        ackHeader.setFlags(false, true, true, false, true); //die, ack, last flags on
-
-        byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
-
-        DatagramPacket ackPacket = new DatagramPacket
-                (
-                        ackHeaderBytes,
-                        HEADER_SIZE,
-                        serverIpAddress,
-                        serverPort
-                );
-        clientSocket.send(ackPacket);
-    }
-
-
     public ClientState getClientState() {
         return state;
     }
@@ -596,147 +561,7 @@ public class RXPClient {
         this.windowSize = window;
     }
 
-    public boolean terminateFromServer() {
-        state = ClientState.DIE_WAIT_1;
-        byte[] arr = new byte[PACKET_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(arr, arr.length);
+    public void tearDown() {
 
-        int tries = 0;
-        while (state != ClientState.CLOSED) {
-            try {
-                sendAckCloseState(); //send the DIE, ACK
-                sendDieCloseState(); //send the DIE, LAST
-                clientSocket.receive(receivePacket);
-
-                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket); // receive the last DIE, ACK
-
-                // Checksum validation for data received from client
-                if (!RXPHelpers.isValidPacketHeader(receiveHeader)) {
-                    // is not Valid Packet, send back
-                    // set same flags but ack is false
-                    // send same packet as received
-                    // so client will resend with same everything
-                    continue;
-                }
-
-                if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst()) {
-                    continue;
-                }
-
-                if (!receiveHeader.isLive() && receiveHeader.isDie() && receiveHeader.isAck() && receiveHeader.isLast() && !receiveHeader.isFirst()) {
-                    state = ClientState.CLOSED;
-                    clientSocket.close();
-                    System.out.println("Socket closed");
-                    return true;
-                }
-
-            } catch (SocketTimeoutException s) {
-                //System.out.println("Have not received DIE from Server for termination from the server");
-                if (tries++ >= 5) {
-                    System.out.println("Unable to terminate the server...");
-                    return false;
-                }
-            } catch (IOException e) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void sendAckCloseState() throws IOException {
-        // DIE Ack Header
-        RXPHeader dieAckHeader = new RXPHeader();
-        dieAckHeader.setSource(clientPort);
-        dieAckHeader.setDestination(serverPort);
-        dieAckHeader.setChecksum(PRECHECKSUM);
-        dieAckHeader.setSeqNum(0);
-        dieAckHeader.setAckNum(0);
-        dieAckHeader.setFlags(false, true, true, false, false); //ack, die flags ondieHeader.setWindow(DATA_SIZE);
-        byte[] data = new byte[DATA_SIZE];
-        dieAckHeader.setHashCode(CheckSum.getHashCode(data));
-        byte[] headerBytes = dieAckHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
-
-        DatagramPacket sendPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
-
-        clientSocket.send(sendPacket);
-
-    }
-
-    private void sendDieCloseState() throws IOException {
-        // Setup header for the DIE packet
-        RXPHeader dieHeader = new RXPHeader();
-        dieHeader.setSource(clientPort);
-        dieHeader.setDestination(serverPort);
-        dieHeader.setSeqNum(seqNum); //should have last seq num
-        dieHeader.setAckNum(ackNum); //?????? What should these be after the ACK
-        dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
-        dieHeader.setChecksum(PRECHECKSUM);
-        dieHeader.setWindow(DATA_SIZE);
-        byte[] data = new byte[DATA_SIZE];
-        dieHeader.setHashCode(CheckSum.getHashCode(data));
-        byte[] headerBytes = dieHeader.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
-
-        DatagramPacket terminatePacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
-
-
-        state = ClientState.LAST_ACK;
-
-        clientSocket.send(terminatePacket);
-        //System.out.println("Server DIE has been sent");
-    }
-
-    public boolean checkServerRequestsTermination() {
-        byte[] receiveMessage = new byte[PACKET_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
-        try {
-            clientSocket.receive(receivePacket);
-            if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
-            {
-                //System.out.println("RECEIVED");
-                return false;
-            }
-
-            RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-            // Assuming valid and Acknowledged, server has sent DIEco
-            if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()) {
-                return true;
-            }
-        } catch (IOException e) {
-            //System.err.println("Unable to terminate");
-        }
-
-        return false;
-
-
-    }
-
-    public boolean checkServerRequestsTermination(DatagramPacket receivePacket) {
-        if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
-        {
-            return false;
-        }
-        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-        // Assuming valid and Acknowledged, server has sent DIE
-        return (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst()
-                && !receiveHeader.isLive());
-
-    }
-
-    /**
-     * A private class that consists of the task to close down the
-     * client socket after the timed wait
-     * <p>
-     * This only ocurs after the client has received the last DIE from the server
-     *
-     * @author Eileen
-     */
-    private class timedWaitTeardown extends TimerTask {
-        public void run() {
-            state = ClientState.CLOSED;
-            clientSocket.close();
-            timedTaskRun = true;
-        }
     }
 }

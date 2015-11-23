@@ -111,7 +111,7 @@ public class RXPClientApplication {
                             case "get": {
                                 if (split.length > 1) {
                                     String pathName = split[1];
-                                    downloaded = client.startDownload(pathName); //TODO implement this once this is finished
+                                    downloaded = client.download(pathName); //TODO implement this once this is finished
                                     //download file from server
                                     if (!downloaded) {
                                         System.out.println("File didn't download");

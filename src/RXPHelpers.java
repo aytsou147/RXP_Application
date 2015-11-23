@@ -94,16 +94,12 @@ public class RXPHelpers {
     public int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
-        return (int) result.getValue();
+        return (int) result.getValue(); //TODO not sure if we can just cast to int
     }
 
     public byte[] getHash(byte[] data) {
         MessageDigest md = MessageDigest.getInstance("MD5");
 
         return md.digest(data);
-
-
-        //TODO md5hash algorithm
-
     }
 }
