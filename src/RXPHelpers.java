@@ -7,6 +7,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.zip.CRC32;
@@ -77,7 +78,12 @@ public class RXPHelpers {
 
 
     public static byte[] getHash(byte[] data) {
-        MessageDigest md = MessageDigest.getInstance("MD5");
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
 
         return md.digest(data);
     }
@@ -112,7 +118,7 @@ public class RXPHelpers {
         return true;
     }
 
-    public int calcChecksum(byte[] data) {
+    public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
         return (int) result.getValue(); //TODO not sure if we can just cast to int
