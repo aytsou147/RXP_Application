@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -19,6 +20,7 @@ public class RXPHelpers {
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE = 496;
     private static final int HEADER_SIZE = 16;
+    private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
 
     public static byte[] combineHeaderData(byte[] headerBytes, byte[] data) {
@@ -78,14 +80,14 @@ public class RXPHelpers {
 
 
     public static byte[] getHash(byte[] data) {
-        MessageDigest md = null;
+        MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");
+            return md.digest(data);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
+            return null;
         }
-
-        return md.digest(data);
     }
 
     public static boolean assembleFile(ArrayList<byte[]> bytesReceived, String fileName) {
@@ -117,10 +119,53 @@ public class RXPHelpers {
         }
         return true;
     }
-
     public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
         return (int) result.getValue(); //TODO not sure if we can just cast to int
+    }
+
+    /**
+     * Sets up the header using passed-in information, EXCEPT for Flags.
+     *
+     * @param serverPort
+     * @param clientPort
+     * @param seqNum
+     * @param ackNum
+     * @return header
+     */
+    public static RXPHeader initHeader(int serverPort, int clientPort, int seqNum, int ackNum) {
+        RXPHeader header = new RXPHeader();
+        header.setSource(serverPort);
+        header.setDestination(clientPort);
+        header.setSeqNum(seqNum);
+        header.setAckNum(ackNum % MAX_SEQ_NUM);
+        header.setWindow(DATA_SIZE);
+
+        return header;
+    }
+
+    /**
+     * Prepares a packet by combining the passed-in header and data and putting it in a packet
+     * Data passed-in should already be ready for combining
+     *
+     * @param clientIpAddress
+     * @param clientPort
+     * @param header
+     * @param data
+     * @return sendPacket
+     */
+    public static DatagramPacket preparePacket(InetAddress clientIpAddress, int clientPort, RXPHeader header, byte[] data) {
+        byte[] headerBytes = header.getHeaderBytes();
+        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
+
+        DatagramPacket sendPacket = new DatagramPacket
+            (
+                packet,
+                PACKET_SIZE,
+                clientIpAddress,
+                clientPort
+            );
+        return sendPacket;
     }
 }
