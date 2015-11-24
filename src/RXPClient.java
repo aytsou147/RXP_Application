@@ -142,6 +142,7 @@ public class RXPClient {
         System.out.printf("Working with challenge:%s\n", bytesAsString);
 
         byte[] datahash = RXPHelpers.getHash(challenge);
+        hashHeader.setWindow(datahash.length);
         try {
             bytesAsString = new String(datahash, "UTF-8");
         } catch (UnsupportedEncodingException e) {

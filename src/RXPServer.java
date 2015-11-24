@@ -122,7 +122,7 @@ public class RXPServer {
         System.out.println("Source port: " + receiveHeader.getSource());
 
         byte[] sendData = challenge.getBytes();
-
+        sendHeader.setWindow(sendData.length);
         // Make the packet
         DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientPort, sendHeader, sendData);
 
