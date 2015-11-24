@@ -27,7 +27,7 @@ public class RXPHeader {
     }
 
     public int getSource() {
-        return (int) (header[SRC] << 8 & 0xFF00 | header[SRC + 1] & 0x00FF);
+        return header[SRC] << 8 & 0xFF00 | header[SRC + 1] & 0x00FF;
     }
 
     public void setSource(int srcPort) {
@@ -36,7 +36,7 @@ public class RXPHeader {
     }
 
     public int getDestination() {
-        return (int) (header[DST] << 8 & 0xFF00 | header[DST + 1] & 0x00FF);
+        return header[DST] << 8 & 0xFF00 | header[DST + 1] & 0x00FF;
     }
 
     public void setDestination(int dstPort) {
@@ -45,8 +45,8 @@ public class RXPHeader {
     }
 
     public int getSeqNum() {
-        return (int) (header[SEQ] << 8 & 0xFF00 |
-                header[SEQ + 1] & 0x00FF);
+        return header[SEQ] << 8 & 0xFF00 |
+                header[SEQ + 1] & 0x00FF;
     }
 
     public void setSeqNum(int seqNum) {
@@ -55,8 +55,8 @@ public class RXPHeader {
     }
 
     public int getAckNum() {
-        return (int) (header[ACK] << 8 & 0xFF00 |
-                header[ACK + 1] & 0x00FF);
+        return header[ACK] << 8 & 0xFF00 |
+                header[ACK + 1] & 0x00FF;
     }
 
     public void setAckNum(int ackNum) {
@@ -65,7 +65,7 @@ public class RXPHeader {
     }
 
     public int getWindow() {
-        return (int) (header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF);
+        return header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF;
     }
 
     public void setWindow(int windowSize) {
@@ -109,14 +109,18 @@ public class RXPHeader {
     }
 
     public int getChecksum() {
-        return (int) (header[CHKSUM] << 24 & 0xFF000000 |
+        return header[CHKSUM] << 24 & 0xFF000000 |
                 header[CHKSUM + 1] << 16 & 0x00FF0000 |
                 header[CHKSUM + 2] << 8 & 0x0000FF00 |
-                header[CHKSUM + 3] & 0x000000FF);
+                header[CHKSUM + 3] & 0x000000FF;
     }
 
     public void setChecksum(byte[] data) {
-        //TODO
+        int checksum = RXPHelpers.calcChecksum(data);
+        header[CHKSUM] = (byte) ((checksum & 0xFF000000) >> 24);
+        header[CHKSUM + 1] = (byte) (checksum & 0x00FF0000 >> 16);
+        header[CHKSUM + 2] = (byte) (checksum & 0x0000FF00 >> 8);
+        header[CHKSUM + 3] = (byte) (checksum & 0x000000FF);
     }
 
     public byte[] getHeaderBytes() {

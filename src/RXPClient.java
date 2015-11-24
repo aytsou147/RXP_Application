@@ -293,6 +293,7 @@ public class RXPClient {
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
             data_length = bytesRemaining;
             header.setFlags(false, false, false, false, false, true); // LAST flag
+
         } else {
             data_length = DATA_SIZE;
             header.setFlags(false, false, false, false, false, false);
@@ -343,7 +344,7 @@ public class RXPClient {
 //                }
                 // Assuming valid and acked
                 if (!receiveHeader.isACK()) {
-                    continue; //got ack packet for filename request, continue to download
+                    continue; //got ack packet for some reason, this isn't our desired data
                 }
                 if (seqNum + 1 == receiveHeader.getAckNum()) {
 
@@ -398,7 +399,7 @@ public class RXPClient {
 
         byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
         ackHeader.setChecksum(dataBytes);
-        ackHeader.setWindow(dataBytes.length); //TODO why?
+        ackHeader.setWindow(dataBytes.length);
 
         DatagramPacket sendPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, ackHeader, dataBytes);
         return sendPacket;

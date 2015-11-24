@@ -48,9 +48,8 @@ public class RXPHelpers {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
         byte[] data = extractData(packet);
-        //TODO make checksum from the extracted data to make comparision
 
-        return (headerChecksum == calcChecksum(data));
+        return ((headerChecksum == calcChecksum(data)));
     }
 
     public static boolean isValidPort(DatagramPacket packet, int srcport, int dstport) {
@@ -119,7 +118,8 @@ public class RXPHelpers {
     public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
-        return (int) result.getValue(); //TODO not sure if we can just cast to int
+        int combinedchecksum = (int) (result.getValue() >>> 32) + (int) result.getValue();
+        return combinedchecksum;
     }
 
     /**
