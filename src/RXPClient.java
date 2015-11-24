@@ -42,8 +42,8 @@ public class RXPClient {
             this.serverIpAddress = InetAddress.getByName(serverIpAddress);
         } catch (UnknownHostException e) {
             e.printStackTrace();
+            System.out.println("Wasn't able to bind IP addresses");
         }
-
         seqNum = 0;
         ackNum = 0;
         state = ClientState.CLOSED;
@@ -55,9 +55,12 @@ public class RXPClient {
      * @throws IOException
      */
     public boolean setupRXP() {
+
         try {
             clientSocket = new DatagramSocket(clientPort, clientIpAddress);
+            System.out.println("Set up clientSocket");
         } catch (SocketException e) {
+            System.out.println("Couldn't setup clientSocket");
             e.printStackTrace();
         }
 
@@ -82,6 +85,7 @@ public class RXPClient {
         } catch (SocketException e1) {
             e1.printStackTrace();
         }
+        System.out.printf("Timer of %d setup./n", timeout);
 
         int tries = 0;
         state = ClientState.SYN_SENT;
@@ -132,7 +136,7 @@ public class RXPClient {
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
                 if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
                 {
-                    System.out.println("CORRUPTED");
+                    System.out.println("Dropping corrupted packets");
                     continue;
                 }
 
@@ -161,10 +165,10 @@ public class RXPClient {
     *
      */
     public void sendName(String s) {
+        System.out.println("Attempting to send filename to upload to server");
         RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverPort, 0, 0);
         nameHeader.setFlags(false, false, false, false, true, false); // POST
         byte[] sendData = s.getBytes(Charset.forName("UTF-8"));
-        ;
         nameHeader.setWindow(sendData.length); //TODO why set the window size to the length of the filename?
         nameHeader.setChecksum(sendData);
         // Make the packet
@@ -181,9 +185,11 @@ public class RXPClient {
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
                 if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
+                    System.out.println("Dropping corrupted packet");
                     continue;
                 }
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
+                    System.out.println("Server acknowledged the filename.");
                     break;
                 }
             } catch (SocketTimeoutException es) {
@@ -202,15 +208,14 @@ public class RXPClient {
      */
     public boolean upload(byte[] file) {
         fileData = file;
-        int bytesRemaining = fileData.length;
-        int packetNumber = (fileData.length / DATA_SIZE);
-        if (fileData.length % DATA_SIZE > 0) packetNumber += 1;
+        int totalPackets = (fileData.length / DATA_SIZE);
+        if (fileData.length % DATA_SIZE > 0) totalPackets += 1; //1 extra packet if there's leftover data
 
         int currPacket = 0;
         DatagramPacket sendingPacket;
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
-        while (currPacket < packetNumber) {
+        while (currPacket < totalPackets) {
             sendingPacket = createDataPacket(currPacket);
             try {
                 clientSocket.send(sendingPacket);
@@ -248,6 +253,7 @@ public class RXPClient {
     * creates packets of indexed bytes of file
      */
     private DatagramPacket createDataPacket(int initByteIndex) {
+        System.out.printf("Creating data packet # %d \n", initByteIndex);
         // Setup header for the data packet
         int byteLocation = initByteIndex * DATA_SIZE;
         int bytesRemaining = fileData.length - byteLocation;
@@ -374,6 +380,7 @@ public class RXPClient {
      * tear down connection
      */
     public void tearDown() {
+        System.out.println("Shutting down");
         System.exit(0);
     }
 
@@ -381,9 +388,9 @@ public class RXPClient {
         return state;
     }
 
-//    public int getWindowSize() {
-//        return windowSize;
-//    }
+    public int getWindowSize() {
+        return windowSize;
+    }
 
     public void setWindowSize(int window) {
         this.windowSize = window;

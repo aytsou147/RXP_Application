@@ -7,8 +7,8 @@ import java.util.Scanner;
 public class RXPClientApplication {
 
     private static final String NETEMUIP = "127.0.0.1";
-    private static final int NETEMUPORT = 8000;
-    private static final int CLIENTPORT = 3250;
+    private static final int NETEMUPORT = 5000;
+    private static final int CLIENTPORT = 8080;
     private static RXPClient client;
 
     public static void main(String[] args) {
@@ -45,7 +45,7 @@ public class RXPClientApplication {
                 System.exit(1);
             }
         } else {
-            System.err.println("fxa-client must be run as first command in the format of fxa-client X A P");
+            System.err.println("Use format: fxa-client X[client port] A[NetEmu IP] P[NetEmu Port]");
             System.exit(1);
         }
         long end = System.currentTimeMillis();
@@ -68,6 +68,7 @@ public class RXPClientApplication {
                     if (split.length > 0 && !s.equals("disconnect")) {
                         switch (split[0]) {
                             case "connect": {
+                                System.out.println("Attempting to connect");
                                 if (!connected && client.setupRXP()) {
                                     System.out.println("Client has successfully connected to the server");
                                     connected = true;
@@ -121,6 +122,7 @@ public class RXPClientApplication {
                             case "window": {
                                 if (split.length > 1) {
                                     try {
+                                        System.out.printf("Previous window size was: %d \n", client.getWindowSize());
                                         int size = Integer.parseInt(split[1]);
                                         client.setWindowSize(size);  //change client's window size
                                     } catch (NumberFormatException e) {
@@ -149,14 +151,11 @@ public class RXPClientApplication {
                         break;
                     }
                 }
-
-
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         try {
             bufferedReader.close();
         } catch (IOException e) {
