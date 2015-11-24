@@ -132,8 +132,16 @@ public class RXPClient {
         // Setup hash Header
         RXPHeader hashHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
         hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
-        byte[] datahash = RXPHelpers.getHash(RXPHelpers.extractData(receivePacket));
         String bytesAsString = null;
+        byte[] challenge = RXPHelpers.extractData(receivePacket);
+        try {
+            bytesAsString = new String(challenge, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        System.out.printf("Working with challenge:%s\n", bytesAsString);
+
+        byte[] datahash = RXPHelpers.getHash(challenge);
         try {
             bytesAsString = new String(datahash, "UTF-8");
         } catch (UnsupportedEncodingException e) {
