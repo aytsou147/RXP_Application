@@ -22,23 +22,24 @@ public class RXPClient {
     private ArrayList<byte[]> bytesReceived;
     private String fileName;
 
-//    public RXPClient() {
-//        this.clientPort = 3251;
-//        this.serverPort = 3252;
-//        try {
-//            this.clientIpAddress = InetAddress.getLocalHost();
-//            this.serverIpAddress = InetAddress.getLocalHost();
-//        } catch (UnknownHostException e) {
-//            e.printStackTrace();
-//        }
-//        state = ClientState.CLOSED;
-//    }
+    public RXPClient() {
+        this.clientPort = 3251;
+        this.serverPort = 3252;
+        try {
+            this.clientIpAddress = InetAddress.getLocalHost();
+            this.serverIpAddress = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        state = ClientState.CLOSED;
+    }
 
     public RXPClient(int clientPort, String serverIpAddress, int serverPort) {
         this.clientPort = clientPort;
         this.serverPort = serverPort;
         try {
-            this.clientIpAddress = InetAddress.getLocalHost();
+//            this.clientIpAddress = InetAddress.getLocalHost();
+            this.clientIpAddress = InetAddress.getByName("127.0.0.1");
             this.serverIpAddress = InetAddress.getByName(serverIpAddress);
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -91,14 +92,22 @@ public class RXPClient {
         state = ClientState.SYN_SENT;
         while (state != ClientState.ESTABLISHED) {
             try {
+                System.out.println("ClientPort: " + clientSocket.getLocalPort()
+                        + "ClientIP: " + clientSocket.getLocalAddress()
+                        + " ClientIP2: " + clientSocket.getInetAddress()
+                        + clientIpAddress);
+                System.out.println("Server Port: " + clientSocket.getPort()
+                        + serverPort);
+                System.out.println(setupPacket.getAddress() + ":" + setupPacket.getPort());
+
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
-                {
-                    System.out.println("CORRUPTED");
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
+//                {
+//                    System.out.println("CORRUPTED");
+//                    continue;
+//                }
 
                 // Assuming valid and SYN, ACK
                 if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {

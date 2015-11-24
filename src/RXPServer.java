@@ -30,11 +30,13 @@ public class RXPServer {
 
     private HashMap<Integer, String> challengeMap = new HashMap<>();
 
+    // Default constructor
     public RXPServer() {
         bytesReceived = new ArrayList<> ();
-        serverPort = 1234;
+        serverPort = 3250;
         try {
-            serverIpAddress = InetAddress.getLocalHost();
+//            serverIpAddress = InetAddress.getLocalHost();
+            this.serverIpAddress = InetAddress.getByName("127.0.0.1");
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -47,7 +49,8 @@ public class RXPServer {
         this.serverPort = serverPort;
         this.clientPort = clientPort;
         try {
-            this.serverIpAddress = InetAddress.getLocalHost();
+//            this.serverIpAddress = InetAddress.getLocalHost();
+            this.serverIpAddress = InetAddress.getByName("127.0.0.1");
             this.clientIpAddress = InetAddress.getByName(clientIpAddress);
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -75,19 +78,20 @@ public class RXPServer {
             try {
                 // Receive Packet
                 serverSocket.receive(receivePacket);
+                System.out.println("Packet received");
 
                 // Get Header of Packet
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
                 // Checksum validation
-                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
-//                    resendPacket(receivePacket, false);
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+////                    resendPacket(receivePacket, false);
+//                    continue;
+//                }
 
                 // HANDSHAKE PT 1: Receive SYN, send SYN+ACK and challenge string
                 if (receiveHeader.isSYN() && !receiveHeader.isACK()) {
-                    sendChallenge();
+                    sendChallenge(receiveHeader);
                     state = ServerState.CHALLENGE_SENT;
                 }
 
@@ -107,14 +111,16 @@ public class RXPServer {
      * After receiving the connection request (SYN), sends a SYN+ACK packet with a 32-bit challenge string in its data
      * @throws IOException
      */
-    private void sendChallenge() throws IOException {
+    private void sendChallenge(RXPHeader receiveHeader) throws IOException {
         // Set up the header
         RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientPort, 0, 0);
         sendHeader.setFlags(true, true, false, false, false, false); // ACK, SYN
 
         // Set up the data
         String challenge = UUID.randomUUID().toString().replaceAll("-","") + UUID.randomUUID().toString().replaceAll("-","");
-        challengeMap.put(clientPort, challenge);
+        challengeMap.put(receiveHeader.getSource(), challenge);
+        System.out.println("Source port: " + receiveHeader.getSource());
+
         byte[] sendData = challenge.getBytes();
 
         // Make the packet
@@ -134,6 +140,7 @@ public class RXPServer {
 //        int receiveSeqNum = receiveHeader.getSeqNum();
 
         // Check Hash
+        System.out.println("Source port 2: " + receiveHeader.getSource());
         String serverChallenge = challengeMap.get(receiveHeader.getSource());
         byte[] serverHash = RXPHelpers.getHash(serverChallenge.getBytes());
 
