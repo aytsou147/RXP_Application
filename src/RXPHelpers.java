@@ -48,7 +48,7 @@ public class RXPHelpers {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
         byte[] data = extractData(packet);
-        int ourChecksum = calcChecksum((data));
+        int ourChecksum = calcChecksum(data);
         System.out.printf("Comparing received checksum:\n %d to calculated checksum:\n %d\n", headerChecksum, ourChecksum);
         return headerChecksum == ourChecksum;
     }
@@ -117,12 +117,13 @@ public class RXPHelpers {
         }
         return true;
     }
+
     public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
-        //return (int) (result.getValue() >>> 32) + (int) result.getValue();
         System.out.printf("Made checksum: %d\n", (int) result.getValue());
-        return (int) result.getValue();
+        return (int) (result.getValue() >>> 32) + (int) result.getValue();
+//        return (int) result.getValue();
     }
 
     /**

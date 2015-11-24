@@ -116,10 +116,10 @@ public class RXPHeader {
 
     public void setChecksum(byte[] data) {
         int checksum = RXPHelpers.calcChecksum(data);
-        header[CHKSUM] = (byte) (checksum & 0xFF000000 >> 24);
-        header[CHKSUM + 1] = (byte) (checksum & 0x00FF0000 >> 16);
-        header[CHKSUM + 2] = (byte) (checksum & 0x0000FF00 >> 8);
-        header[CHKSUM + 3] = (byte) (checksum & 0x000000FF);
+        header[CHKSUM] = (byte) (checksum >> 24);
+        header[CHKSUM + 1] = (byte) (checksum >> 16);
+        header[CHKSUM + 2] = (byte) (checksum >> 8);
+        header[CHKSUM + 3] = (byte) (checksum);
     }
 
     public byte[] getHeaderBytes() {

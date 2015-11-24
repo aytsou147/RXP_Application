@@ -84,11 +84,11 @@ public class RXPServer {
                 // Get Header of Packet
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-//                 //Checksum validation
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
-////                    resendPacket(receivePacket, false);
-//                    continue;
-//                }
+                //Checksum validation
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping invalid packet");
+                    continue;
+                }
 
                 // HANDSHAKE PT 1: Receive SYN, send SYN+ACK and challenge string
                 if (receiveHeader.isSYN() && !receiveHeader.isACK()) {
@@ -111,6 +111,12 @@ public class RXPServer {
             try {
                 serverSocket.receive(receivePacket);
                 System.out.println("Packet received");
+
+                //Checksum validation
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping invalid packet");
+                    continue;
+                }
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
@@ -176,17 +182,20 @@ public class RXPServer {
 
                 System.out.println("Received: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
 
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {   //got a corrupted packet
-//                    System.out.println("Dropping invalid packet");
-//                    continue;
-//                }
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {   //got a corrupted packet
+                    System.out.println("Dropping invalid packet");
+                    continue;
+                }
+
                 if (receiveHeader.isFIN()) {    //client wants to terminate
                     tearDown();
                 }
+
                 if (seqNum == receiveHeader.getAckNum()) { //getting ack for previous packet
                     System.out.println("Already got this ack.");
                     continue;
                 }
+
                 if (seqNum + 1 == receiveHeader.getAckNum()) {  //got the ack for this packet
                     System.out.println("Correct ack");
                     seqNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;

@@ -106,12 +106,10 @@ public class RXPClient {
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receivePacket)) //|| !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
-                {
-                    System.out.println("CORRUPTED");
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping invalid packet");
                     continue;
                 }
-
 
                 // Assuming valid and SYN, ACK
                 if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {
@@ -163,8 +161,7 @@ public class RXPClient {
                 clientSocket.send(hashPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
-//                {
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
 //                    System.out.println("Dropping corrupted packets");
 //                    continue;
 //                }
@@ -214,10 +211,11 @@ public class RXPClient {
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {
-//                    System.out.println("Dropping corrupted packet");
-//                    continue;
-//                }
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged the filename.");
                     break;
@@ -252,10 +250,10 @@ public class RXPClient {
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {   //got a corrupted packet
-//                    System.out.println("Dropping invalid packet");
-//                    continue;
-//                }
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping invalid packet");
+                    continue;
+                }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
                     tearDown();
                 }
@@ -343,16 +341,16 @@ public class RXPClient {
 
                 clientSocket.receive(receivePacket);
                 receiveHeader = RXPHelpers.getHeader(receivePacket);
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 
                 System.out.println("Receiving: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
                 System.out.println("Global: " + seqNum + ", " + ackNum);
 
                 boolean isLast = receiveHeader.isLAST();
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {
-//					  System.out.println("Dropping corrupted packet);
-//                    continue;
-//                }
                 // Assuming valid and acked
                 if (receiveHeader.isACK()) {
                     System.out.println("Is ACK, Skip");
