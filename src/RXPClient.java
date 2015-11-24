@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -12,8 +13,10 @@ public class RXPClient {
 
     private ClientState state;
 
-    private int clientPort, serverPort;
-    private InetAddress clientIpAddress, serverIpAddress;
+    private int clientPort = 8080;
+    private int serverPort = 5000;
+    private InetAddress clientIpAddress;
+    private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
 
     private byte[] window = new byte[MAX_SEQ_NUM]; //TODO window sliding
@@ -86,7 +89,7 @@ public class RXPClient {
         } catch (SocketException e1) {
             e1.printStackTrace();
         }
-        System.out.printf("Timer of %d setup./n", timeout);
+        System.out.printf("Timer of %d setup.\n", timeout);
 
         int tries = 0;
         state = ClientState.SYN_SENT;
@@ -130,6 +133,13 @@ public class RXPClient {
         RXPHeader hashHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
         hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
         byte[] datahash = RXPHelpers.getHash(RXPHelpers.extractData(receivePacket));
+        String bytesAsString = null;
+        try {
+            bytesAsString = new String(datahash, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        System.out.printf("Setting up hash of %s\n", bytesAsString);
         hashHeader.setChecksum(datahash);
         // Make the packet
         DatagramPacket hashPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, hashHeader, datahash);
@@ -143,11 +153,11 @@ public class RXPClient {
                 clientSocket.send(hashPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
-                {
-                    System.out.println("Dropping corrupted packets");
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
+//                {
+//                    System.out.println("Dropping corrupted packets");
+//                    continue;
+//                }
 
                 // Assuming valid and ACK
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
@@ -193,10 +203,10 @@ public class RXPClient {
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
-                    System.out.println("Dropping corrupted packet");
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
+//                    System.out.println("Dropping corrupted packet");
+//                    continue;
+//                }
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged the filename.");
                     break;
@@ -231,10 +241,10 @@ public class RXPClient {
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {   //got a corrupted packet
-                    System.out.println("Dropping invalid packet");
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {   //got a corrupted packet
+//                    System.out.println("Dropping invalid packet");
+//                    continue;
+//                }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
                     tearDown();
                 }
@@ -318,10 +328,10 @@ public class RXPClient {
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
                 boolean isLast = receiveHeader.isLAST();
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
-//					System.out.println("Dropping corrupted packet);
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
+//					  System.out.println("Dropping corrupted packet);
+//                    continue;
+//                }
                 // Assuming valid and acked
                 if (!receiveHeader.isACK()) {
                     continue; //got ack packet for filename request, continue to download
