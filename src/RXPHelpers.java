@@ -79,7 +79,8 @@ public class RXPHelpers {
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");
-            return md.digest(data);
+            md.update(data);
+            return md.digest();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return null;

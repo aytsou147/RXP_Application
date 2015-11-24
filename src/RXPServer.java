@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.util.*;
 
@@ -56,8 +57,8 @@ public class RXPServer {
             e.printStackTrace();
         }
         state = ServerState.CLOSED;
-        Random rand = new Random();
-        seqNum = rand.nextInt(MAX_SEQ_NUM);
+//        Random rand = new Random();
+//        seqNum = rand.nextInt(MAX_SEQ_NUM);
     }
 
     public void createSocket() {
@@ -105,6 +106,130 @@ public class RXPServer {
                 e.printStackTrace();
             }
         }
+
+        while (state == ServerState.ESTABLISHED) {
+            try {
+                serverSocket.receive(receivePacket);
+                System.out.println("Packet received");
+
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+                if (receiveHeader.isGET()) {
+                     if (sendFile(receivePacket)) {
+                         System.out.println("Sent file!");
+                     } else {
+                         System.out.println("Failed to send file");
+                     }
+                }
+
+                if (receiveHeader.isPOST()) {
+                    receiveFile(receivePacket);
+                }
+            } catch (SocketTimeoutException s) {
+                System.out.println("Timed out");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private boolean receiveFile(DatagramPacket receivePacket) {
+        return true;
+    }
+
+    /**
+     * starts and carries out upload transfer
+     */
+    public boolean sendFile(DatagramPacket receivePacket) {
+
+        // Get received packet info
+        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+        byte[] filePath = RXPHelpers.extractData(receivePacket); //get the data from the packet
+
+        String fileString = null;
+        try {
+            fileString = new String(filePath, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        fileData = RXPHelpers.getFileBytes(fileString);
+
+        int numPackets = (fileData.length / DATA_SIZE);
+        if (fileData.length % DATA_SIZE > 0) numPackets += 1; //1 extra packet if there's leftover data
+
+        int currPacket = 0;
+        DatagramPacket sendingPacket;
+//        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
+
+        while (currPacket < numPackets) {
+            sendingPacket = createDataPacket(currPacket);
+            try {
+                System.out.println("Created: " + seqNum + ", " + ackNum);
+
+                System.out.println("Sending: " + RXPHelpers.getHeader(sendingPacket).getSeqNum() + ", " + RXPHelpers.getHeader(sendingPacket).getAckNum());
+
+                serverSocket.send(sendingPacket);
+                System.out.println("Sent");
+                serverSocket.receive(receivePacket);
+                receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+                System.out.println("Received: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
+
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {   //got a corrupted packet
+//                    System.out.println("Dropping invalid packet");
+//                    continue;
+//                }
+                if (receiveHeader.isFIN()) {    //client wants to terminate
+                    tearDown();
+                }
+                if (seqNum == receiveHeader.getAckNum()) { //getting ack for previous packet
+                    System.out.println("Already got this ack.");
+                    continue;
+                }
+                if (seqNum + 1 == receiveHeader.getAckNum()) {  //got the ack for this packet
+                    System.out.println("Correct ack");
+                    seqNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
+                    ackNum = receiveHeader.getAckNum();
+                    currPacket++;
+                }
+            } catch (SocketTimeoutException s) {
+                System.out.println("Timeout, resending..");
+                return false;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        fileData = null;
+        return true;
+    }
+
+    /*
+    * creates packets of indexed bytes of file
+    */
+    private DatagramPacket createDataPacket(int initByteIndex) {
+        System.out.printf("Creating data packet # %d \n", initByteIndex);
+        // Setup header for the data packet
+        int byteLocation = initByteIndex * DATA_SIZE;
+        int bytesRemaining = fileData.length - byteLocation;
+
+        RXPHeader header = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
+
+        int data_length;
+        if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
+            data_length = bytesRemaining;
+            header.setFlags(false, false, false, false, false, true); // LAST flag
+        } else {
+            data_length = DATA_SIZE;
+            header.setFlags(false, false, false, false, false, false);
+        }
+        header.setWindow(data_length);
+        byte[] data = new byte[data_length];
+        System.arraycopy(fileData, initByteIndex * DATA_SIZE, data, 0, data_length);
+        header.setChecksum(data);
+
+        return RXPHelpers.preparePacket(clientIpAddress, clientPort, header, data);
     }
 
     /**
@@ -119,7 +244,9 @@ public class RXPServer {
         // Set up the data
         String challenge = UUID.randomUUID().toString().replaceAll("-","") + UUID.randomUUID().toString().replaceAll("-","");
         challengeMap.put(receiveHeader.getSource(), challenge);
+
         System.out.println("Source port: " + receiveHeader.getSource());
+        System.out.println("Challenge " + challenge + " was sent");
 
         byte[] sendData = challenge.getBytes();
         sendHeader.setWindow(sendData.length);
@@ -135,6 +262,16 @@ public class RXPServer {
         // Get received packet info
         RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
         byte[] clientHash = RXPHelpers.extractData(receivePacket); //get the data from the packet
+
+        // Delete this later
+        String extracted = null;
+        try {
+            extracted = new String(clientHash, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+//        System.out.printf("Extracted " + extracted);
+
         ackNum = receiveHeader.getSeqNum();
         int sendAckNum = (ackNum + 1) % MAX_SEQ_NUM;
 //        int receiveSeqNum = receiveHeader.getSeqNum();
@@ -142,7 +279,19 @@ public class RXPServer {
         // Check Hash
         System.out.println("Source port 2: " + receiveHeader.getSource());
         String serverChallenge = challengeMap.get(receiveHeader.getSource());
+
+        System.out.println("Challenge: " + serverChallenge + " was taken from hashmap");
+
         byte[] serverHash = RXPHelpers.getHash(serverChallenge.getBytes());
+
+        // Delete this later
+        String bytesAsString = null;
+        try {
+            bytesAsString = new String(serverHash, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+//        System.out.printf("Setting up hash of %s\n", bytesAsString);
 
         // Confirmed match
         if (Arrays.equals(clientHash, serverHash)) {
@@ -161,5 +310,13 @@ public class RXPServer {
 
     public boolean terminate() {
         return true;
+    }
+
+    /**
+     * tear down connection
+     */
+    public void tearDown() {
+        System.out.println("Shutting down");
+        System.exit(0);
     }
 }
