@@ -15,6 +15,7 @@ public class RXPClient {
 
     private int clientPort;
     private int serverPort;
+    private int serverRXPPort;
     private InetAddress clientIpAddress;
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
@@ -94,22 +95,23 @@ public class RXPClient {
         state = ClientState.SYN_SENT;
         while (state != ClientState.ESTABLISHED) {
             try {
-                System.out.println("ClientPort: " + clientSocket.getLocalPort()
-                        + "ClientIP: " + clientSocket.getLocalAddress()
-                        + " ClientIP2: " + clientSocket.getInetAddress()
-                        + clientIpAddress);
-                System.out.println("Server Port: " + clientSocket.getPort()
-                        + serverPort);
-                System.out.println(setupPacket.getAddress() + ":" + setupPacket.getPort());
+//                System.out.println("ClientPort: " + clientSocket.getLocalPort()
+//                        + "ClientIP: " + clientSocket.getLocalAddress()
+//                        + " ClientIP2: " + clientSocket.getInetAddress()
+//                        + clientIpAddress);
+//                System.out.println("Server Port: " + clientSocket.getPort()
+//                        + serverPort);
+//                System.out.println(setupPacket.getAddress() + ":" + setupPacket.getPort());
 
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) //|| !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
                 {
                     System.out.println("CORRUPTED");
                     continue;
                 }
+
 
                 // Assuming valid and SYN, ACK
                 if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {
@@ -161,7 +163,7 @@ public class RXPClient {
                 clientSocket.send(hashPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket))    //Corrupted
 //                {
 //                    System.out.println("Dropping corrupted packets");
 //                    continue;
@@ -171,6 +173,7 @@ public class RXPClient {
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
                     System.out.println("Established");
                     state = ClientState.ESTABLISHED;
+                    serverRXPPort = receiveHeader.getSource();
                     break;
                 }
             } catch (SocketTimeoutException s) {
@@ -211,7 +214,7 @@ public class RXPClient {
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {
 //                    System.out.println("Dropping corrupted packet");
 //                    continue;
 //                }
@@ -249,7 +252,7 @@ public class RXPClient {
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {   //got a corrupted packet
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {   //got a corrupted packet
 //                    System.out.println("Dropping invalid packet");
 //                    continue;
 //                }
@@ -346,7 +349,7 @@ public class RXPClient {
                 System.out.println("Global: " + seqNum + ", " + ackNum);
 
                 boolean isLast = receiveHeader.isLAST();
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort)) {
+//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverRXPPort)) {
 //					  System.out.println("Dropping corrupted packet);
 //                    continue;
 //                }

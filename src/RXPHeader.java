@@ -8,7 +8,7 @@ public class RXPHeader {
     static final int ACK = 6;
     static final int WIN = 8;
     static final int FLAG = 10;
-    static final int CHKSUM = 12;
+    static final int CHKSUM = 12; //is four bytes
 
     private byte[] header;
 
@@ -108,7 +108,7 @@ public class RXPHeader {
     }
 
     public int getChecksum() {
-        return header[CHKSUM] << 24 & 0xFF000000 |
+        return (int) header[CHKSUM] << 24 & 0xFF000000 |
                 header[CHKSUM + 1] << 16 & 0x00FF0000 |
                 header[CHKSUM + 2] << 8 & 0x0000FF00 |
                 header[CHKSUM + 3] & 0x000000FF;
@@ -116,7 +116,7 @@ public class RXPHeader {
 
     public void setChecksum(byte[] data) {
         int checksum = RXPHelpers.calcChecksum(data);
-        header[CHKSUM] = (byte) ((checksum & 0xFF000000) >> 24);
+        header[CHKSUM] = (byte) (checksum & 0xFF000000 >> 24);
         header[CHKSUM + 1] = (byte) (checksum & 0x00FF0000 >> 16);
         header[CHKSUM + 2] = (byte) (checksum & 0x0000FF00 >> 8);
         header[CHKSUM + 3] = (byte) (checksum & 0x000000FF);

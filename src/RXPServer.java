@@ -84,7 +84,7 @@ public class RXPServer {
                 // Get Header of Packet
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
-                // Checksum validation
+//                 //Checksum validation
 //                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
 ////                    resendPacket(receivePacket, false);
 //                    continue;
@@ -249,6 +249,7 @@ public class RXPServer {
         System.out.println("Challenge " + challenge + " was sent");
 
         byte[] sendData = challenge.getBytes();
+        sendHeader.setChecksum(sendData);
         sendHeader.setWindow(sendData.length);
         // Make the packet
         DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientPort, sendHeader, sendData);

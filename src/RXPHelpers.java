@@ -48,8 +48,9 @@ public class RXPHelpers {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
         byte[] data = extractData(packet);
-
-        return ((headerChecksum == calcChecksum(data)));
+        int ourChecksum = calcChecksum((data));
+        System.out.printf("Comparing received checksum:\n %d to calculated checksum:\n %d\n", headerChecksum, ourChecksum);
+        return headerChecksum == ourChecksum;
     }
 
     public static boolean isValidPort(DatagramPacket packet, int srcport, int dstport) {
@@ -119,8 +120,9 @@ public class RXPHelpers {
     public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
-        int combinedchecksum = (int) (result.getValue() >>> 32) + (int) result.getValue();
-        return combinedchecksum;
+        //return (int) (result.getValue() >>> 32) + (int) result.getValue();
+        System.out.printf("Made checksum: %d\n", (int) result.getValue());
+        return (int) result.getValue();
     }
 
     /**
