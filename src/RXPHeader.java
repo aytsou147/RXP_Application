@@ -1,9 +1,7 @@
 public class RXPHeader {
     static final int HEADERLENGTH = 16;
 
-    /*
-     * Header Field offsets
-     */
+    //Header offsets
     static final int SRC = 0;
     static final int DST = 2;
     static final int SEQ = 4;
@@ -15,7 +13,7 @@ public class RXPHeader {
     private byte[] header;
 
     public RXPHeader() {
-        this(new byte[20]);
+        this(new byte[16]);
     }
 
     public RXPHeader(byte[] headerArr) {
@@ -81,31 +79,32 @@ public class RXPHeader {
         if (GET) flag |= (byte) (1 << 4);
         if (POST) flag |= (byte) (1 << 3);
         if (LAST) flag |= (byte) (1 << 2);
+
         header[FLAG] = flag;
     }
 
     public boolean isACK() {
-        return ((header[FLAG] & 0b10000000) != 0);
+        return (header[FLAG] & 0b10000000) != 0;
     }
 
     public boolean isSYN() {
-        return ((header[FLAG] & 0b01000000) != 0);
+        return (header[FLAG] & 0b01000000) != 0;
     }
 
     public boolean isFIN() {
-        return ((header[FLAG] & 0b00100000) != 0);
+        return (header[FLAG] & 0b00100000) != 0;
     }
 
     public boolean isGET() {
-        return ((header[FLAG] & 0b00010000) != 0);
+        return (header[FLAG] & 0b00010000) != 0;
     }
 
     public boolean isPOST() {
-        return ((header[FLAG] & 0b00001000) != 0);
+        return (header[FLAG] & 0b00001000) != 0;
     }
 
     public boolean isLAST() {
-        return ((header[FLAG] & 0b00000100) != 0);
+        return (header[FLAG] & 0b00000100) != 0;
     }
 
     public int getChecksum() {

@@ -13,8 +13,8 @@ public class RXPClient {
 
     private ClientState state;
 
-    private int clientPort = 8080;
-    private int serverPort = 5000;
+    private int clientPort;
+    private int serverPort;
     private InetAddress clientIpAddress;
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
