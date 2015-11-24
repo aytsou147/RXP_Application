@@ -176,6 +176,11 @@ public class RXPServer {
                 System.out.println("Sending: " + RXPHelpers.getHeader(sendingPacket).getSeqNum() + ", " + RXPHelpers.getHeader(sendingPacket).getAckNum());
 
                 serverSocket.send(sendingPacket);
+
+                if (RXPHelpers.getHeader(sendingPacket).isLAST()) {
+                    break;
+                }
+
                 System.out.println("Sent");
                 serverSocket.receive(receivePacket);
                 receiveHeader = RXPHelpers.getHeader(receivePacket);
@@ -189,6 +194,10 @@ public class RXPServer {
 
                 if (receiveHeader.isFIN()) {    //client wants to terminate
                     tearDown();
+                }
+
+                if (receiveHeader.isACK() && receiveHeader.isLAST()) {
+                    break;
                 }
 
                 if (seqNum == receiveHeader.getAckNum()) { //getting ack for previous packet
@@ -227,6 +236,7 @@ public class RXPServer {
 
         int data_length;
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
+            System.out.println(">>>>>>>>>>>>LAST<<<<<<<<<<<");
             data_length = bytesRemaining;
             header.setFlags(false, false, false, false, false, true); // LAST flag
         } else {

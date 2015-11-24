@@ -188,8 +188,8 @@ public class RXPClient {
     }
 
     /*
-    * sends name to server to prep server to receive upload
-    *
+     * sends name to server to prep server to receive upload
+     *
      */
     public void sendName(String s) {
         System.out.println("Attempting to send filename to upload to server");

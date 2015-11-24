@@ -89,6 +89,8 @@ public class RXPHelpers {
     }
 
     public static boolean assembleFile(ArrayList<byte[]> bytesReceived, String fileName) {
+        fileName = "downloaded_" + fileName;
+
         int bufferLength = bytesReceived.size();
         int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;    // Length of last data
         int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;    // number of bytes in file
