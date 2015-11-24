@@ -194,7 +194,7 @@ public class RXPClient {
     public void sendName(String s) {
         System.out.println("Attempting to send filename to upload to server");
         RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverPort, 0, 0);
-        nameHeader.setFlags(false, false, false, false, true, false); // POST
+        nameHeader.setFlags(false, false, false, false, true, false); // POST.
         byte[] sendData = s.getBytes(Charset.forName("UTF-8"));
         nameHeader.setWindow(sendData.length);
         nameHeader.setChecksum(sendData);

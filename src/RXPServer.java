@@ -159,6 +159,8 @@ public class RXPServer {
             e.printStackTrace();
         }
 
+        System.out.println(fileString);
+
         fileData = RXPHelpers.getFileBytes(fileString);
 
         int numPackets = (fileData.length / DATA_SIZE);
@@ -176,10 +178,6 @@ public class RXPServer {
                 System.out.println("Sending: " + RXPHelpers.getHeader(sendingPacket).getSeqNum() + ", " + RXPHelpers.getHeader(sendingPacket).getAckNum());
 
                 serverSocket.send(sendingPacket);
-
-                if (RXPHelpers.getHeader(sendingPacket).isLAST()) {
-                    break;
-                }
 
                 System.out.println("Sent");
                 serverSocket.receive(receivePacket);
@@ -213,7 +211,6 @@ public class RXPServer {
                 }
             } catch (SocketTimeoutException s) {
                 System.out.println("Timeout, resending..");
-                return false;
             } catch (IOException e) {
                 e.printStackTrace();
                 return false;
