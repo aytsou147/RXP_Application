@@ -19,11 +19,10 @@ public class RXPClient {
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
 
-    private byte[] window = new byte[MAX_SEQ_NUM]; //TODO window sliding
+    //private byte[] window = new byte[MAX_SEQ_NUM]; //TODO window sliding
     private int seqNum, ackNum, windowSize;
     private byte[] fileData;
     private ArrayList<byte[]> bytesReceived;
-    private String fileName;
 
     public RXPClient() {
         this.clientPort = 3251;
@@ -106,11 +105,11 @@ public class RXPClient {
                 clientSocket.send(setupPacket);
                 clientSocket.receive(receivePacket);
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-//                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
-//                {
-//                    System.out.println("CORRUPTED");
-//                    continue;
-//                }
+                if (!RXPHelpers.isValidPacketHeader(receivePacket) || !RXPHelpers.isValidPort(receivePacket, clientPort, serverPort))    //Corrupted
+                {
+                    System.out.println("CORRUPTED");
+                    continue;
+                }
 
                 // Assuming valid and SYN, ACK
                 if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {
@@ -197,7 +196,7 @@ public class RXPClient {
         RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverPort, 0, 0);
         nameHeader.setFlags(false, false, false, false, true, false); // POST
         byte[] sendData = s.getBytes(Charset.forName("UTF-8"));
-        nameHeader.setWindow(sendData.length); //TODO why set the window size to the length of the filename?
+        nameHeader.setWindow(sendData.length);
         nameHeader.setChecksum(sendData);
         // Make the packet
         DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, nameHeader, sendData);
@@ -296,9 +295,8 @@ public class RXPClient {
 
         } else {
             data_length = DATA_SIZE;
-            header.setFlags(false, false, false, false, false, false);
         }
-        header.setWindow(data_length); //TODO why is this the window size
+        header.setWindow(data_length);
         byte[] data = new byte[data_length];
         System.arraycopy(fileData, initByteIndex * DATA_SIZE, data, 0, data_length);
         header.setChecksum(data);
@@ -350,7 +348,6 @@ public class RXPClient {
 
                     requestPacket = receiveDataPacket(receivePacket, currPacket);
                     clientSocket.send(requestPacket);
-                    this.fileName = fileName;
                     currPacket++;
 
                     if (receiveHeader.isLAST()) {
