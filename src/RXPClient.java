@@ -220,6 +220,10 @@ public class RXPClient {
                     System.out.println("Dropping corrupted packet");
                     continue;
                 }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                    continue;
+                }
 
                 if (receiveHeader.isACK() && receiveHeader.isPOST() && !receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged the filename.");
@@ -260,6 +264,10 @@ public class RXPClient {
 
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping invalid packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
@@ -355,6 +363,10 @@ public class RXPClient {
                 receiveHeader = RXPHelpers.getHeader(receivePacket);
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");

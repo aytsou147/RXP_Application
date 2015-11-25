@@ -116,10 +116,10 @@ public class RXPServer {
                     System.out.println("Dropping invalid packet");
                     continue;
                 }
-//                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
-//                    System.out.println("Dropping packet of incorrect ports");
-//                    continue;
-//                }
+                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                    continue;
+                }
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
@@ -177,6 +177,10 @@ public class RXPServer {
                 receiveHeader = RXPHelpers.getHeader(receivePacket);
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 
@@ -254,6 +258,10 @@ public class RXPServer {
 
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {   //got a corrupted packet
                     System.out.println("Dropping invalid packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 
