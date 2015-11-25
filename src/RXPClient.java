@@ -20,7 +20,6 @@ public class RXPClient {
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
 
-    //private byte[] window = new byte[MAX_SEQ_NUM]; //TODO window sliding
     private int seqNum, ackNum, windowSize;
     private byte[] fileData;
     private ArrayList<byte[]> bytesReceived;
@@ -308,7 +307,6 @@ public class RXPClient {
         int bytesRemaining = fileData.length - byteLocation;
 
         RXPHeader header = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
-        //TODO double check the seqNum and ackNum configuration ^
 
         int data_length;
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
@@ -427,14 +425,14 @@ public class RXPClient {
         ackNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
         seqNum = receiveHeader.getAckNum();
         RXPHeader ackHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, ackNum);
-        //TODO ^^ verify acknum and seqnum changes and entries into initHeader
+
         if (receiveHeader.isLAST()) {
             ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
         } else {
             ackHeader.setFlags(true, false, false, true, false, false);    // ACK
         }
 
-        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
+        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
         ackHeader.setChecksum(dataBytes);
         ackHeader.setWindow(dataBytes.length);
 

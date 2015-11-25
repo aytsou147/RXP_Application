@@ -358,7 +358,7 @@ public class RXPServer extends Thread {
             ackHeader.setFlags(true, false, false, true, false, false);    // ACK
         }
 
-        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
+        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
         ackHeader.setChecksum(dataBytes);
         ackHeader.setWindow(dataBytes.length);
 
