@@ -437,8 +437,7 @@ public class RXPClient {
         ackHeader.setChecksum(dataBytes);
         ackHeader.setWindow(dataBytes.length);
 
-        DatagramPacket sendPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, ackHeader, dataBytes);
-        return sendPacket;
+        return RXPHelpers.preparePacket(serverIpAddress, serverNetPort, ackHeader, dataBytes);
     }
 
     /**

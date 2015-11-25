@@ -72,6 +72,7 @@ public class RXPServer {
     public void connect() {
         byte[] arr = new byte[PACKET_SIZE];
         receivePacket = new DatagramPacket(arr, PACKET_SIZE);
+        boolean hashAckSent = false;
 
         // handshake
         while (state != ServerState.ESTABLISHED) {
@@ -98,8 +99,12 @@ public class RXPServer {
                 // HANDSHAKE PT 2: Receive ACK and challenge hash, send ACK
                 if (receiveHeader.isACK() && !receiveHeader.isSYN()) {
                     verifyChallenge(receivePacket);
+                    hashAckSent = true;
                 }
             } catch (SocketTimeoutException s) {
+                if (hashAckSent) {
+                    break;
+                }
                 System.out.println("Timed out");
             } catch (IOException e) {
                 e.printStackTrace();
