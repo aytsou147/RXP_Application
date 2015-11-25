@@ -23,7 +23,7 @@ public class RXPHelpers {
     private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
 
-    public static byte[] combineHeaderData(byte[] headerBytes, byte[] data) {
+    private static byte[] combineHeaderData(byte[] headerBytes, byte[] data) {
 
         byte[] packetBytes = new byte[PACKET_SIZE];
         System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);
@@ -116,6 +116,7 @@ public class RXPHelpers {
             fout.close();
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
         return true;
     }
@@ -162,14 +163,13 @@ public class RXPHelpers {
         byte[] headerBytes = header.getHeaderBytes();
         byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
 
-        DatagramPacket sendPacket = new DatagramPacket
+        //        System.out.println(destPort);
+        return new DatagramPacket
             (
                 packet,
                 PACKET_SIZE,
                     destIP,
                     destPort
             );
-//        System.out.println(destPort);
-        return sendPacket;
     }
 }

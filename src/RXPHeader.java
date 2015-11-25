@@ -1,24 +1,25 @@
 public class RXPHeader {
-    static final int HEADERLENGTH = 16;
+    private static final int HEADERLENGTH = 16;
 
     //Header offsets
-    static final int SRC = 0;
-    static final int DST = 2;
-    static final int SEQ = 4;
-    static final int ACK = 6;
-    static final int WIN = 8;
-    static final int FLAG = 10;
-    static final int CHKSUM = 12; //is four bytes
+    private static final int SRC = 0;
+    private static final int DST = 2;
+    private static final int SEQ = 4;
+    private static final int ACK = 6;
+    private static final int WIN = 8;
+    private static final int FLAG = 10;
+    private static final int CHECKSUM = 12; //is four bytes
 
+    @SuppressWarnings("CanBeFinal")
     private byte[] header;
 
     public RXPHeader() {
-        this(new byte[16]);
+        this(new byte[HEADERLENGTH]);
     }
 
     public RXPHeader(byte[] headerArr) {
-        if (headerArr.length != 16) {
-            header = new byte[16];
+        if (headerArr.length != HEADERLENGTH) {
+            header = new byte[HEADERLENGTH];
         } else {
             header = headerArr;
         }
@@ -108,18 +109,18 @@ public class RXPHeader {
     }
 
     public int getChecksum() {
-        return (int) header[CHKSUM] << 24 & 0xFF000000 |
-                header[CHKSUM + 1] << 16 & 0x00FF0000 |
-                header[CHKSUM + 2] << 8 & 0x0000FF00 |
-                header[CHKSUM + 3] & 0x000000FF;
+        return (int) header[CHECKSUM] << 24 & 0xFF000000 |
+                header[CHECKSUM + 1] << 16 & 0x00FF0000 |
+                header[CHECKSUM + 2] << 8 & 0x0000FF00 |
+                header[CHECKSUM + 3] & 0x000000FF;
     }
 
     public void setChecksum(byte[] data) {
         int checksum = RXPHelpers.calcChecksum(data);
-        header[CHKSUM] = (byte) (checksum >> 24);
-        header[CHKSUM + 1] = (byte) (checksum >> 16);
-        header[CHKSUM + 2] = (byte) (checksum >> 8);
-        header[CHKSUM + 3] = (byte) (checksum);
+        header[CHECKSUM] = (byte) (checksum >> 24);
+        header[CHECKSUM + 1] = (byte) (checksum >> 16);
+        header[CHECKSUM + 2] = (byte) (checksum >> 8);
+        header[CHECKSUM + 3] = (byte) (checksum);
     }
 
     public byte[] getHeaderBytes() {
