@@ -9,12 +9,10 @@ import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
+/**
+ * Application level that runs the server
+ */
 public class RXPServerApplication {
-
-//    private static final String NETEMUIP = "127.0.0.1";
-//    private static final int NETEMUPORT = 8000;
-//    private static final int SERVERPORT = 3251;
     public static RXPServer server;
 
     public static void main(String[] args) {
@@ -54,38 +52,5 @@ public class RXPServerApplication {
         server.start();
         RXPServerApplicationInput RXPServerInput = new RXPServerApplicationInput();
         RXPServerInput.start();
-
-//        long end = System.currentTimeMillis();
-//        InputStreamReader fileInputStream = new InputStreamReader(System.in);
-//        BufferedReader bufferedReader = new BufferedReader(fileInputStream);
-//
-//        try {
-//            String s = "";
-//
-//            while((System.currentTimeMillis()>=end)) {
-//                s = "";
-//                server.connect();
-//                if (bufferedReader.ready()) {
-//                    s += bufferedReader.readLine();
-//                    System.out.println("here");
-//
-//                    System.out.println(s);
-//                    if (s.equalsIgnoreCase("terminate")) {
-//                        if (server.terminate()) {
-//                            System.out.println("Server termination successful");
-//                            System.exit(0);
-//                        } else {
-//                            System.out.println("Server termination failed");
-//                        }
-//                    } else {
-//                        System.err.println("Invalid command");
-//                    }
-//                }
-//            }
-//            bufferedReader.close();
-//        } catch (java.io.IOException e) {
-//            System.err.println("Server could not be shut down");
-//            e.printStackTrace();
-//        }
     }
 }

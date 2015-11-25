@@ -4,10 +4,13 @@ import java.io.InputStreamReader;
 import java.util.Scanner;
 
 
+/**
+ * The client application that runs the client
+ */
 public class RXPClientApplication {
     private static RXPClient client;
     public static void main(String[] args) {
-        //take in arguements
+        //take in arguments
         Scanner scan = new Scanner(System.in);
         boolean connected = false;
         if (args.length > 0 && args[0].equalsIgnoreCase("FXA-client")) {
@@ -75,10 +78,10 @@ public class RXPClientApplication {
                                     System.out.println(fileName);
                                     System.out.println(filePath);
                                     boolean success = false;
-                                    byte[] file = RXPHelpers.getFileBytes(filePath);
+                                    byte[] file = RXPHelpers.fileToBytes(filePath);
                                     if (file != null) {
                                         if (client.sendFileNameUpload(fileName)) {
-                                            success = client.upload(RXPHelpers.getFileBytes(filePath));
+                                            success = client.upload(RXPHelpers.fileToBytes(filePath));
                                         }
                                     } else {
                                         System.out.println("File does not exist");

@@ -1,5 +1,4 @@
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -115,7 +114,7 @@ public class RXPClient {
         hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
         byte[] challenge = RXPHelpers.getData(receiveSetupPacket);
 
-        //System.out.printf("Working with challenge:%s\n", RXPHelpers.btyeArrToStr(challenge));
+        //System.out.printf("Working with challenge:%s\n", RXPHelpers.byteArrToStr(challenge));
 
         byte[] datahash = RXPHelpers.getHash(challenge);
 
@@ -123,7 +122,7 @@ public class RXPClient {
             hashHeader.setSegmentLength(datahash.length);
         }
 
-        //System.out.printf("Setting up hash of %s\n", RXPHelpers.btyeArrToStr(datahash));
+        //System.out.printf("Setting up hash of %s\n", RXPHelpers.byteArrToStr(datahash));
         hashHeader.setChecksum(datahash);
 
         // Make the packet
@@ -393,7 +392,7 @@ public class RXPClient {
             }
         }
         System.out.println("Finished downloading");
-        boolean resultOfAssemble = RXPHelpers.assembleFile(bytesReceived, fileName);
+        boolean resultOfAssemble = RXPHelpers.combineBytesToFile(bytesReceived, fileName);
         fileData = null;
         seqNum = 0;
         ackNum = 0;

@@ -1,3 +1,7 @@
+/**
+ * The header of each packet used in the application
+ * A diagram on what the header looks like is depicted in our documentation
+ */
 public class RXPHeader {
     private static final int HEADERLENGTH = 16;
 
@@ -13,10 +17,17 @@ public class RXPHeader {
     @SuppressWarnings("CanBeFinal")
     private byte[] header;
 
+    /**
+     * Deafult Constructor
+     */
     public RXPHeader() {
         this(new byte[HEADERLENGTH]);
     }
 
+    /**
+     * Creates a byte array with the size of the header
+     * @param headerArr
+     */
     public RXPHeader(byte[] headerArr) {
         if (headerArr.length != HEADERLENGTH) {
             header = new byte[HEADERLENGTH];
@@ -72,6 +83,16 @@ public class RXPHeader {
         header[SEGLEN + 1] = (byte) (segmentLength & 0x00FF);
     }
 
+    /**
+     * Set the specific bit flags in the header based on the input
+     *
+     * @param ACK
+     * @param SYN
+     * @param FIN
+     * @param GET
+     * @param POST
+     * @param LAST
+     */
     public void setFlags(boolean ACK, boolean SYN, boolean FIN, boolean GET, boolean POST, boolean LAST) {
         byte flag = 0;
         if (ACK) flag |= (byte) (1 << 7);

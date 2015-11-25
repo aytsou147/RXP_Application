@@ -2,7 +2,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 /**
- * Created by Anthony on 11/25/2015.
+ * Handles the user command line input while the server is running.
+ * This is a separate thread than the server.
  */
 public class RXPServerApplicationInput extends Thread {
     public void run() {
@@ -33,5 +34,4 @@ public class RXPServerApplicationInput extends Thread {
             e.printStackTrace();
         }
     }
-
 }

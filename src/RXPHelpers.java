@@ -15,7 +15,9 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
-
+/**
+ * Various helper methods used in rest of project
+ */
 public class RXPHelpers {
 
     private static final int PACKET_SIZE = 512;
@@ -23,7 +25,8 @@ public class RXPHelpers {
     private static final int HEADER_SIZE = 16;
 
     /**
-     * Sets up the header using passed-in information, EXCEPT for Flags.
+     * Sets up the header using passed-in information, EXCEPT for Flags and checksum
+     * Segment Length is usually overridden after
      *
      * @param srcPort
      * @param destPort
@@ -60,6 +63,12 @@ public class RXPHelpers {
         return new DatagramPacket(packetBytes, PACKET_SIZE, destIP, destPort);
     }
 
+    /**
+     * Takes the data from the data section of the received packet and does not include the extra space
+     *
+     * @param receivePacket
+     * @return
+     */
     public static byte[] getData(DatagramPacket receivePacket) {
         RXPHeader receiveHeader = getHeader(receivePacket);
         int data_length = receiveHeader.getSegmentLength();
@@ -71,6 +80,13 @@ public class RXPHelpers {
         return extractedData;
     }
 
+    /**
+     * Verifies that the checksum in the header is the same as the checksum performed on the received data
+     * This is to check for bit-error during transfer
+     *
+     * @param packet
+     * @return
+     */
     public static boolean passChecksum(DatagramPacket packet) {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
@@ -80,16 +96,36 @@ public class RXPHelpers {
         return headerChecksum == ourChecksum;
     }
 
+    /**
+     * Check if the ports are correct
+     *
+     * @param packet
+     * @param dstport
+     * @param srcport
+     * @return
+     */
     public static boolean isValidPorts(DatagramPacket packet, int dstport, int srcport) {
         RXPHeader header = getHeader(packet);
         return header.getSource() == srcport && header.getDestination() == dstport;
     }
 
+    /**
+     * Returns only the header from a packet
+     *
+     * @param receivePacket
+     * @return
+     */
     public static RXPHeader getHeader(DatagramPacket receivePacket) {
         return new RXPHeader(Arrays.copyOfRange(receivePacket.getData(), 0, HEADER_SIZE));
     }
 
-    public static byte[] getFileBytes(String pathName) {
+    /**
+     * Returns the byte array of a file using the file path
+     *
+     * @param pathName
+     * @return
+     */
+    public static byte[] fileToBytes(String pathName) {
         Path path = Paths.get(pathName);
         byte[] data = null;
         try {
@@ -103,6 +139,12 @@ public class RXPHelpers {
         return data;
     }
 
+    /**
+     * Performs an MD5 hash on the data
+     *
+     * @param data
+     * @return
+     */
     public static byte[] getHash(byte[] data) {
         MessageDigest md;
         try {
@@ -115,7 +157,14 @@ public class RXPHelpers {
         }
     }
 
-    public static boolean assembleFile(ArrayList<byte[]> bytesReceived, String fileName) {
+    /**
+     * Takes the byte data of the received packets and assembles them into the original file
+     *
+     * @param bytesReceived the byte data of the received packets
+     * @param fileName name of the outputted file
+     * @return
+     */
+    public static boolean combineBytesToFile(ArrayList<byte[]> bytesReceived, String fileName) {
         fileName = "downloaded_" + fileName;
 
         int bufferSize = bytesReceived.size();
@@ -148,6 +197,13 @@ public class RXPHelpers {
         return true;
     }
 
+    /**
+     * Computes the checksum of the data to check for bit error after tranfer
+     * CRC32 returns a long, so this adds the two halves and returns the int
+     *
+     * @param data
+     * @return
+     */
     public static int makeChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
@@ -156,7 +212,13 @@ public class RXPHelpers {
 //        return (int) result.getValue();
     }
 
-    public static String btyeArrToStr(byte[] bytes) {
+    /**
+     * Converts a byte array to a string
+     *
+     * @param bytes
+     * @return
+     */
+    public static String byteArrToStr(byte[] bytes) {
         try {
             return new String(bytes, "UTF-8");
         } catch (UnsupportedEncodingException e) {

@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- * RXP Server
+ * RXP Server class
  */
 public class RXPServer extends Thread {
     private static final int PACKET_SIZE = 512;
@@ -28,6 +28,13 @@ public class RXPServer extends Thread {
     private boolean closeReq = false;
     private boolean isBusy = false;
 
+    /**
+     * Constructor
+     *
+     * @param serverPort
+     * @param clientIpAddress
+     * @param clientNetPort
+     */
     public RXPServer(int serverPort, String clientIpAddress, int clientNetPort) {
         bytesReceived = new ArrayList<>();
         this.serverPort = serverPort;
@@ -43,12 +50,19 @@ public class RXPServer extends Thread {
         state = ServerState.CLOSED;
     }
 
+    /**
+     * Used to thread, part of Thread, which was extended
+     */
+    @Override
     public void run() {
         while (true) {
             connect();
         }
     }
 
+    /**
+     * Creates the server socket
+     */
     public void createSocket() {
         try {
             serverSocket = new DatagramSocket(serverPort, serverIpAddress);
@@ -58,6 +72,9 @@ public class RXPServer extends Thread {
         }
     }
 
+    /**
+     * Main method that executes during an open session of the server
+     */
     private void connect() {
         byte[] arr = new byte[PACKET_SIZE];
         receivePacket = new DatagramPacket(arr, PACKET_SIZE);
@@ -168,6 +185,10 @@ public class RXPServer extends Thread {
         }
     }
 
+    /**
+     * Terminate the connection to the client.
+     * Called in the application level
+     */
     public void terminate() {
         if (isBusy) {
             closeReq = true;
@@ -204,6 +225,13 @@ public class RXPServer extends Thread {
         serverSocket.send(sendPacket);
     }
 
+    /**
+     * After receiving hashed challenge from client, get saved challenge for that client, hash it, check for equivalency
+     * Sends ACK back
+     *
+     * @param receivePacket
+     * @throws IOException
+     */
     private void verifyChallenge(DatagramPacket receivePacket) throws IOException {
 
         // Get received packet info
@@ -246,11 +274,11 @@ public class RXPServer extends Thread {
         RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
         byte[] filePath = RXPHelpers.getData(receivePacket); //get the data from the packet
 
-        String fileString = RXPHelpers.btyeArrToStr(filePath);
+        String fileString = RXPHelpers.byteArrToStr(filePath);
 
         System.out.println(fileString);
 
-        fileData = RXPHelpers.getFileBytes(fileString);
+        fileData = RXPHelpers.fileToBytes(fileString);
 
         if (fileData == null) {
             return false;
@@ -261,7 +289,6 @@ public class RXPServer extends Thread {
 
         int currPacket = 0;
         DatagramPacket sendingPacket;
-//        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
         while (currPacket < numPackets) {
             sendingPacket = createDataPacket(currPacket);
@@ -286,10 +313,6 @@ public class RXPServer extends Thread {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
-
-//                if (receiveHeader.isFIN()) {    //client wants to terminate
-//                    tearDown();
-//                }
 
                 if (receiveHeader.isACK() && receiveHeader.isLAST()) {
                     break;
@@ -317,9 +340,9 @@ public class RXPServer extends Thread {
         return true;
     }
 
-    /*
-    * creates packets of indexed bytes of file
-    */
+    /**
+     * creates packets of indexed bytes of file
+     */
     private DatagramPacket createDataPacket(int initByteIndex) {
         System.out.printf("Creating data packet # %d \n", initByteIndex);
         // Setup header for the data packet
@@ -345,6 +368,13 @@ public class RXPServer extends Thread {
         return RXPHelpers.preparePacket(clientIpAddress, clientNetPort, header, data);
     }
 
+    /**
+     * Downloads file from client by receiving the broken up packets, ACKing back each one, and assembling them at the end
+     * Finishes when it receives a LAST and responds with a LAST ACK
+     *
+     * @param receivePacket
+     * @return
+     */
     private boolean receiveFile(DatagramPacket receivePacket) {
         // Get received packet info
         RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
@@ -406,6 +436,7 @@ public class RXPServer extends Thread {
                     finDownload = true;
                 }
             } catch (SocketTimeoutException s) {
+                // Times out to verify that the LAST ACK was sent to the client properly
                 if (finDownload) {
                     break;
                 }
@@ -420,7 +451,7 @@ public class RXPServer extends Thread {
             }
         }
         System.out.println("Finished downloading");
-        boolean resultOfAssemble = RXPHelpers.assembleFile(bytesReceived, fileString);
+        boolean resultOfAssemble = RXPHelpers.combineBytesToFile(bytesReceived, fileString);
         fileData = null;
         bytesReceived = new ArrayList<>();
         if (closeRequest) {
