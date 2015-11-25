@@ -6,9 +6,9 @@ import java.util.Scanner;
 
 public class RXPClientApplication {
 
-    private static final String NETEMUIP = "127.0.0.1";
-    private static final int NETEMUPORT = 5000;
-    private static final int CLIENTPORT = 8080;
+    //private static final String NETEMUIP = "127.0.0.1";
+    //private static final int NETEMUPORT = 5000;
+    //private static final int CLIENTPORT = 8080;
     private static RXPClient client;
 
     public static void main(String[] args) {
@@ -103,9 +103,8 @@ public class RXPClientApplication {
                             case "get": {
                                 if (split.length > 1) {
                                     String pathName = split[1];
-                                    downloaded = client.download(pathName); //TODO implement this once this is finished
                                     //download file from server
-                                    if (!downloaded) {
+                                    if (!client.download(pathName)) {
                                         System.out.println("File didn't download");
                                     } else {
                                         System.out.println("Successfully downloaded");
