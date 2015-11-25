@@ -26,18 +26,6 @@ public class RXPClient {
     private ArrayList<byte[]> bytesReceived;
     private boolean closeRequested = false;
 
-//    public RXPClient() {
-//        this.clientPort = 3251;
-//        this.serverNetPort = 3252;
-//        try {
-//            this.clientIpAddress = InetAddress.getLocalHost();
-//            this.serverIpAddress = InetAddress.getLocalHost();
-//        } catch (UnknownHostException e) {
-//            e.printStackTrace();
-//        }
-//        state = ClientState.CLOSED;
-//    }
-
     public RXPClient(int clientPort, String serverIpAddress, int serverNetPort) {
         this.clientPort = clientPort;
         this.serverNetPort = serverNetPort;
