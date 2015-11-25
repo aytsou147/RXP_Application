@@ -15,7 +15,6 @@ public class RXPClientApplication {
         //scan in arguments
         Scanner scan = new Scanner(System.in);
         boolean connected = false;
-        boolean downloaded = false;
         if (args.length > 0 && args[0].equalsIgnoreCase("FXA-client")) {
             if (args.length > 3) {
                 try {
@@ -52,7 +51,7 @@ public class RXPClientApplication {
         InputStreamReader fileInputStream = new InputStreamReader(System.in);
         BufferedReader bufferedReader = new BufferedReader(fileInputStream);
         try {
-            String s = "";
+            String s;
 
             while ((System.currentTimeMillis() >= end)) {
                 s = "";

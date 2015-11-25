@@ -519,7 +519,7 @@ public class RXPClient {
         //check for fin ack
         //timeout, send fin packet again
         RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
-        finHeader.setFlags(true, false, true, false, true, false); // FIN. ACK
+        finHeader.setFlags(true, false, true, false, false, false); // FIN. ACK
         byte[] sendData = new byte[DATA_SIZE];
         finHeader.setWindow(sendData.length);
         finHeader.setChecksum(sendData);
@@ -531,19 +531,12 @@ public class RXPClient {
             try {
                 clientSocket.send(sendingPacket);
                 clientSocket.receive(receivePacket);
-
-                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
-
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
                     continue;
                 }
                 if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
                     System.out.println("Dropping packet of incorrect ports");
-                    continue;
-                }
-
-                if (receiveHeader.isFIN()) {
                 }
             } catch (SocketTimeoutException es) {
                 System.out.println("Timeout into close.");
