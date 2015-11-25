@@ -5,14 +5,9 @@ import java.util.Scanner;
 
 
 public class RXPClientApplication {
-
-    //private static final String NETEMUIP = "127.0.0.1";
-    //private static final int NETEMUPORT = 5000;
-    //private static final int CLIENTPORT = 8080;
     private static RXPClient client;
-
     public static void main(String[] args) {
-        //scan in arguments
+        //take in arguements
         Scanner scan = new Scanner(System.in);
         boolean connected = false;
         if (args.length > 0 && args[0].equalsIgnoreCase("FXA-client")) {
@@ -27,39 +22,38 @@ public class RXPClientApplication {
 
                     //P is the UDP port of NetEMU
                     int netEmuPort = Integer.parseInt(args[3]);
-
-                    System.out.println("Initializing RXPClient...");
                     client = new RXPClient(clientPort, netEmuIpAddress, netEmuPort);
-                    System.out.println("Initialization Complete");
+                    System.out.println("Initialized RXP Client");
                 } catch (NumberFormatException e) {
-                    System.err.println("The port argument must be a valid port number.");
+                    System.err.println("The port number must be a valid port number.");
                     System.exit(1);
                 } catch (IllegalArgumentException e) {
-                    System.err.println("The second argument must be a valid IP address.");
+                    System.err.println("Invalid IP address.");
                     System.exit(1);
                 }
 
             } else {
-                System.err.println("Not enough arguments.");
+                System.err.println("Not enough arguments");
                 System.exit(1);
             }
         } else {
             System.err.println("Use format: fxa-client X[client port] A[NetEmu IP] P[NetEmu Port]");
             System.exit(1);
         }
-        long end = System.currentTimeMillis();
-        InputStreamReader fileInputStream = new InputStreamReader(System.in);
-        BufferedReader bufferedReader = new BufferedReader(fileInputStream);
-        try {
-            String s;
 
-            while ((System.currentTimeMillis() >= end)) {
-                s = "";
-                if (bufferedReader.ready()) {
-                    s += bufferedReader.readLine();
-                    System.out.println(s);
-                    String[] split = s.split("\\s+");
-                    if (split.length > 0 && !s.equals("disconnect")) {
+        long endTimeCount = System.currentTimeMillis();
+        InputStreamReader fileInputStream = new InputStreamReader(System.in);
+        BufferedReader buffRead = new BufferedReader(fileInputStream);
+        try {
+            String commandEntries;
+
+            while ((System.currentTimeMillis() >= endTimeCount)) {
+                commandEntries = "";
+                if (buffRead.ready()) {
+                    commandEntries += buffRead.readLine();
+                    System.out.println(commandEntries);
+                    String[] split = commandEntries.split("\\s+");
+                    if (split.length > 0 && !commandEntries.equals("disconnect")) {
                         switch (split[0]) {
                             case "connect": {
                                 System.out.println("Attempting to connect");
@@ -72,7 +66,9 @@ public class RXPClientApplication {
                                 break;
                             }
                             case "put": {
-                                if (split.length > 1) {
+                                if (split.length < 1) {
+                                    System.err.println("You need another argument after put");
+                                } else {
                                     String fileName = split[1];
 
                                     String filePath = System.getProperty("user.dir") + "/" + fileName;
@@ -94,8 +90,6 @@ public class RXPClientApplication {
                                         System.out.println("Upload failed");
                                     }
 
-                                } else {
-                                    System.err.println("You need another argument after put");
                                 }
                                 break;
                             }
@@ -104,35 +98,35 @@ public class RXPClientApplication {
                                     String pathName = split[1];
                                     //download file from server
                                     if (!client.download(pathName)) {
-                                        System.out.println("File didn't download");
+                                        System.out.println("Download failed");
                                     } else {
-                                        System.out.println("Successfully downloaded");
+                                        System.out.println("Downloaded!");
                                     }
 
                                 } else {
-                                    System.err.println("You need another argument after get");
+                                    System.err.println("Need arg after get: filename");
                                 }
                                 break;
                             }
 
                             default: {
-                                System.err.println("Invalid command");
+                                System.err.println("Command invalid");
                                 break;
                             }
                         }
-                    } else if (s.equalsIgnoreCase("disconnect")) {
+                    } else if (commandEntries.equalsIgnoreCase("disconnect")) {
                         if (client.getClientState() == ClientState.CLOSED) {
                             System.out.println("Connection does not exist.");
                             scan.close();
                             System.exit(0);
                         }
-                        System.out.println("Disconnecting...");
+                        System.out.println("Disconnecting");
                         client.clientDisconnect();
                         scan.close();
                         System.exit(0);
 
                     } else {
-                        System.err.println("Invalid command.");
+                        System.err.println("Command invalid.");
                         System.exit(1);
                         break;
                     }
@@ -143,7 +137,7 @@ public class RXPClientApplication {
             e.printStackTrace();
         }
         try {
-            bufferedReader.close();
+            buffRead.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
