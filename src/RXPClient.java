@@ -270,18 +270,16 @@ public class RXPClient {
     private DatagramPacket formDataPacket(int initByteIndex) {
         System.out.printf("Creating data packet # %d \n", initByteIndex);
         // Setup header for the data packet
-        int byteLocation = initByteIndex * DATA_SIZE;
-        int bytesRemaining = fileData.length - byteLocation;
+        int byteIndex = initByteIndex * DATA_SIZE;
+        int bytesRemaining = fileData.length - byteIndex;
 
         RXPHeader header = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, (ackNum + 1) % SEQ_NUM_MAX);
 
-        int data_length;
+        int data_length = DATA_SIZE;
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
             data_length = bytesRemaining;
             header.setFlags(false, false, false, false, false, true); // LAST flag
             //System.out.println("Creating LAST packet");
-        } else {
-            data_length = DATA_SIZE;
         }
         header.setWindow(data_length);
         byte[] data = new byte[data_length];
@@ -300,7 +298,7 @@ public class RXPClient {
         //Send GET packet with filename
         byte[] receiveMessage = new byte[PACKET_SIZE];
         DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
-        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+        RXPHeader headerResponse;
 
         // Setup Initializing Header
 
@@ -315,7 +313,7 @@ public class RXPClient {
 
         int currPacket = 0;
         int tries = 0;
-        boolean finDownload = false;
+        boolean finDL = false;
         bytesReceived = new ArrayList<byte[]>();
         while (true) {
             try {
@@ -324,7 +322,7 @@ public class RXPClient {
                 clientSocket.send(requestPacket);
 
                 clientSocket.receive(receivePacket);
-                receiveHeader = RXPHelpers.getHeader(receivePacket);
+                headerResponse = RXPHelpers.getHeader(receivePacket);
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
                     continue;
@@ -333,11 +331,11 @@ public class RXPClient {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
-                if (receiveHeader.isFIN()) {    //server wants to terminate
+                if (headerResponse.isFIN()) {    //server wants to terminate
                     closeRequested = true;
                 }
 
-                if (receiveHeader.isFIN() && closeRequested) {
+                if (headerResponse.isFIN() && closeRequested) {
                     break;
                 }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
@@ -345,25 +343,23 @@ public class RXPClient {
                 //System.out.println("Receiving: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
                 //System.out.println("Global: " + seqNum + ", " + ackNum);
 
-//                boolean isLast = receiveHeader.isLAST();
-                // Assuming valid and acked
-                if (receiveHeader.isACK()) {
+                if (headerResponse.isACK()) {
                     System.out.println("Is ACK, Skip");
                     continue; //got ack packet for some reason, this isn't our desired data
                 }
 
-                if (ackNum == receiveHeader.getSeqNum()) {
+                if (ackNum == headerResponse.getSeqNum()) {
                     //System.out.println("Right packet");
-                    requestPacket = receiveDataPacket(receivePacket, currPacket);
+                    requestPacket = receiveData(receivePacket, currPacket);
                     currPacket++;
                 }
 
-                if (receiveHeader.isLAST()) {
-                    finDownload = true;
+                if (headerResponse.isLAST()) {
+                    finDL = true;
                 }
             } catch (SocketTimeoutException s) {
                 // Once we send the last packet, we wait for it to timeout. If we receive another LAST, then the LASTACK we sent was lost
-                if (finDownload) {
+                if (finDL) {
                     break;
                 }
 
@@ -388,28 +384,27 @@ public class RXPClient {
     /**
      * take received packets into byte array collection and prepare ack packet
      */
-    private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum) {
-        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+    private DatagramPacket receiveData(DatagramPacket receivePacket, int nextPacketNum) {
+        RXPHeader headerResponse = RXPHelpers.getHeader(receivePacket);
 
         // extracts and adds data to ArrayList of byte[]s
         byte[] data = RXPHelpers.extractData(receivePacket);
         bytesReceived.add(data);
 
-        ackNum = (receiveHeader.getSeqNum() + 1) % SEQ_NUM_MAX;
-        seqNum = receiveHeader.getAckNum();
+        ackNum = (headerResponse.getSeqNum() + 1) % SEQ_NUM_MAX;
+        seqNum = headerResponse.getAckNum();
         RXPHeader ackHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, ackNum);
 
-        if (receiveHeader.isLAST()) {
+        if (headerResponse.isLAST()) {
             ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
         } else {
             ackHeader.setFlags(true, false, false, false, false, false);    // ACK
         }
 
-        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
-        ackHeader.setChecksum(dataBytes);
-        ackHeader.setWindow(dataBytes.length);
-
-        return RXPHelpers.preparePacket(serverIpAddress, serverNetPort, ackHeader, dataBytes);
+        byte[] dataArray = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
+        ackHeader.setChecksum(dataArray);
+        ackHeader.setWindow(dataArray.length);
+        return RXPHelpers.preparePacket(serverIpAddress, serverNetPort, ackHeader, dataArray);
     }
 
     /**
@@ -423,8 +418,8 @@ public class RXPClient {
         finHeader.setWindow(sendData.length);
         finHeader.setChecksum(sendData);
         // Make the packet
-        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
-        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
+        DatagramPacket finPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
+        DatagramPacket packetResponse = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
         // send fin packet to server
         //if we recieve a FIN ACK, we're done and we can close.
@@ -432,22 +427,22 @@ public class RXPClient {
         state = ClientState.CLOSE_REQ;
         while (true) {
             try {
-                clientSocket.send(sendingPacket);
-                clientSocket.receive(receivePacket);
+                clientSocket.send(finPacket);
+                clientSocket.receive(packetResponse);
 
-                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+                RXPHeader headerResponse = RXPHelpers.getHeader(packetResponse);
 
-                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                if (!RXPHelpers.isValidPacketHeader(packetResponse)) {
                     System.out.println("Dropping corrupted packet");
                     continue;
                 }
-                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                if (!RXPHelpers.isValidPorts(packetResponse, clientPort, serverRXPPort)) {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 
                 //check for fin ack
-                if (receiveHeader.isACK() && receiveHeader.isFIN()) {
+                if (headerResponse.isACK() && headerResponse.isFIN()) {
                     System.out.println("Server acknowledged close with FIN ACK");
                     state = ClientState.CLOSED;
                     break;
@@ -462,8 +457,6 @@ public class RXPClient {
                 e.printStackTrace();
             }
         }
-
-        //System.exit(0);
     }
 
     /**
@@ -472,31 +465,26 @@ public class RXPClient {
     private void serverDisconnect() {
         state = ClientState.CLOSE_WAIT;
         System.out.println("Beginning disconnection from client side");
-        //while loop:
-        // send fin packet to server
-        //receive packet
-        //check for fin ack
-        //timeout, send fin packet again
         RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
         finHeader.setFlags(true, false, true, false, false, false); // FIN. ACK
         byte[] sendData = new byte[DATA_SIZE];
         finHeader.setWindow(sendData.length);
         finHeader.setChecksum(sendData);
         // Make the packet
-        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
+        DatagramPacket finackPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
 
-        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
+        DatagramPacket packetResponse = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
         while (true) {
             try {
-                clientSocket.send(sendingPacket);
-                clientSocket.receive(receivePacket);
-                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                clientSocket.send(finackPacket);
+                clientSocket.receive(packetResponse);
+                if (!RXPHelpers.isValidPacketHeader(packetResponse)) {
                     System.out.println("Dropping corrupted packet");
                     continue;
                 }
-//                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
-//                    System.out.println("Dropping packet of incorrect ports");
-//                }
+                if (!RXPHelpers.isValidPorts(packetResponse, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                }
             } catch (SocketTimeoutException es) {
                 System.out.println("Timeout into close.");
                 break;
@@ -515,5 +503,4 @@ public class RXPClient {
     public ClientState getClientState() {
         return state;
     }
-
 }
