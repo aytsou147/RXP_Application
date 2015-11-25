@@ -364,7 +364,10 @@ public class RXPClient {
                 }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
                     closeRequested = true;
-                    continue;
+                }
+
+                if (receiveHeader.isFIN() && closeRequested) {
+                    break;
                 }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 
@@ -444,7 +447,7 @@ public class RXPClient {
     public void clientDisconnect() {
         System.out.println("Beginning disconnection from client side");
         RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
-        finHeader.setFlags(false, false, true, false, true, false); // FIN.
+        finHeader.setFlags(false, false, true, false, false, false); // FIN.
         byte[] sendData = new byte[DATA_SIZE];
         finHeader.setWindow(sendData.length);
         finHeader.setChecksum(sendData);
@@ -520,9 +523,9 @@ public class RXPClient {
                     System.out.println("Dropping corrupted packet");
                     continue;
                 }
-                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
-                    System.out.println("Dropping packet of incorrect ports");
-                }
+//                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+//                    System.out.println("Dropping packet of incorrect ports");
+//                }
             } catch (SocketTimeoutException es) {
                 System.out.println("Timeout into close.");
                 break;
@@ -531,8 +534,8 @@ public class RXPClient {
             }
         }
 
-        state = ClientState.CLOSED;
-        //System.exit(0);
+//        state = ClientState.CLOSED;
+        System.exit(1);
     }
 
     /**

@@ -21,12 +21,7 @@ public class RXPServerApplicationInput extends Thread {
 
                     System.out.println(s);
                     if (s.equalsIgnoreCase("terminate")) {
-                        if (RXPServerApplication.server.terminate()) {
-                            System.out.println("Server termination successful");
-                            System.exit(0);
-                        } else {
-                            System.out.println("Waiting for transfer to finish!");
-                        }
+                        RXPServerApplication.server.terminate();
                     } else {
                         System.err.println("Invalid command");
                     }

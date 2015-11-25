@@ -84,7 +84,7 @@ public class RXPServer extends Thread {
         boolean hashAckSent = false;
 
         // handshake
-        while (state != ServerState.ESTABLISHED) {
+        while (state == ServerState.CLOSED || state == ServerState.CHALLENGE_SENT) {
             try {
                 // Receive Packet
                 serverSocket.receive(receivePacket);
@@ -114,7 +114,12 @@ public class RXPServer extends Thread {
                 if (hashAckSent) {
                     break;
                 }
-                System.out.println("Timed out");
+
+                if (state == ServerState.CLOSED) {
+                    System.out.println("Waiting for client...");
+                } else {
+                    System.out.println("Timed out");
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -142,7 +147,7 @@ public class RXPServer extends Thread {
                     if (sendFile(receivePacket)) {
                         System.out.println("Sent file!");
                         if (closeReq) {
-                            System.exit(1);
+                            serverDisconnect();
                         }
                     } else {
                         System.out.println("Failed to send file");
@@ -154,9 +159,13 @@ public class RXPServer extends Thread {
                     isBusy = true;
                     receiveFile(receivePacket);
                     if (closeReq) {
-                        System.exit(1);
+                        serverDisconnect();
                     }
                     isBusy = false;
+                }
+
+                if (receiveHeader.isFIN() && !receiveHeader.isACK()) {
+                    respondToCloseReq();
                 }
             } catch (SocketTimeoutException s) {
                 System.out.println("Timed out");
@@ -164,6 +173,43 @@ public class RXPServer extends Thread {
                 e.printStackTrace();
             }
         }
+
+        if (state == ServerState.CLOSE_WAIT) {
+            System.out.println("Connection closed successfully!");
+            state = ServerState.CLOSED;
+        }
+    }
+
+    /**
+     * Received FIN from client, sends FIN ACK back, transitions state to CLOSE_WAIT
+     */
+    private void respondToCloseReq() {
+        System.out.println("Acknowledging client's close request...");
+        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, ackNum);
+        sendHeader.setFlags(true, false, true, false, false, false); // ACK, FIN
+
+        byte[] sendData = new byte[DATA_SIZE];
+        sendHeader.setChecksum(sendData);
+        sendHeader.setWindow(sendData.length);
+
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
+        boolean finAckSent = false;
+
+        while (true) {
+            try {
+                serverSocket.send(sendPacket);
+                finAckSent = true;
+                serverSocket.receive(receivePacket);
+            } catch (SocketTimeoutException s) {
+                if (finAckSent) {
+                    break;
+                }
+                System.out.println("Timeout, resending..");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        state = ServerState.CLOSE_WAIT;
     }
 
     private boolean receiveFile(DatagramPacket receivePacket) {
@@ -191,6 +237,7 @@ public class RXPServer extends Thread {
         int currPacket = 0;
         int tries = 0;
         boolean finDownload = false;
+        boolean closeRequest = false;
         bytesReceived = new ArrayList<byte[]>();
 
         while (true) {
@@ -206,6 +253,14 @@ public class RXPServer extends Thread {
                 if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
+                }
+
+                if (receiveHeader.isFIN()) {    //client wants to terminate
+                    closeRequest = true;
+                }
+
+                if (receiveHeader.isFIN() && closeRequest) {
+                    break;
                 }
 
                 if (ackNum == receiveHeader.getSeqNum()) {
@@ -235,6 +290,9 @@ public class RXPServer extends Thread {
         boolean resultOfAssemble = RXPHelpers.assembleFile(bytesReceived, fileString);
         fileData = null;
         bytesReceived = new ArrayList<byte[]>();
+        if (closeRequest) {
+            respondToCloseReq();
+        }
         return resultOfAssemble;
     }
 
@@ -444,7 +502,7 @@ public class RXPServer extends Thread {
         // Confirmed match
         if (Arrays.equals(clientHash, serverHash)) {
             // Send ACK packet
-            RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientNetPort, seqNum, sendAckNum);
+            RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, sendAckNum);
             sendHeader.setFlags(true, false, false, false, false, false); // ACK
             byte[] sendData = new byte[DATA_SIZE];
             sendHeader.setChecksum(sendData);
@@ -459,12 +517,63 @@ public class RXPServer extends Thread {
         }
     }
 
-    public boolean terminate() {
+    /**
+     * Initiates disconnecting by sending a FIN to the client and expecting a FIN + ACK in return
+     */
+    private void serverDisconnect() {
+        System.out.println("Beginning disconnection from server side...");
+
+        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, ackNum);
+        sendHeader.setFlags(false, false, true, false, false, false); // FIN.
+
+        byte[] sendData = new byte[DATA_SIZE];
+        sendHeader.setWindow(sendData.length);
+        sendHeader.setChecksum(sendData);
+
+        // Make the packet
+        DatagramPacket sendingPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
+
+        int tries = 0;
+        while (true) {
+            try {
+                serverSocket.send(sendingPacket);
+                serverSocket.receive(receivePacket);
+
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                    continue;
+                }
+
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+
+                if (receiveHeader.isACK() && receiveHeader.isFIN()) {
+                    System.out.println("Client acknowledged close with FIN ACK");
+                    break;
+                }
+            } catch (SocketTimeoutException es) {
+                System.out.println("Timeout, resending");
+                if (tries++ >= 5) {
+                    System.out.println("Unsuccessful request.");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        state = ServerState.CLOSED;
+    }
+
+    public void terminate() {
         if (isBusy) {
             closeReq = true;
-            return false;
+            System.out.println("Waiting for transfer to finish!");
+        } else {
+            serverDisconnect();
         }
-        return true;
     }
 
     /**
