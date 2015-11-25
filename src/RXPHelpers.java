@@ -49,7 +49,7 @@ public class RXPHelpers {
         int headerChecksum = header.getChecksum();
         byte[] data = extractData(packet);
         int ourChecksum = calcChecksum(data);
-        System.out.printf("Comparing received checksum:\n %d to calculated checksum:\n %d\n", headerChecksum, ourChecksum);
+        //System.out.printf("Comparing received checksum:\n %d to calculated checksum:\n %d\n", headerChecksum, ourChecksum);
         return headerChecksum == ourChecksum;
     }
 

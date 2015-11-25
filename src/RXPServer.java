@@ -392,8 +392,8 @@ public class RXPServer extends Thread {
         String challenge = UUID.randomUUID().toString().replaceAll("-","") + UUID.randomUUID().toString().replaceAll("-","");
         challengeMap.put(receiveHeader.getSource(), challenge);
 
-        System.out.println("Source port: " + receiveHeader.getSource());
-        System.out.println("Challenge " + challenge + " was sent");
+        //System.out.println("Source port: " + receiveHeader.getSource());
+        //System.out.println("Challenge " + challenge + " was sent");
 
         byte[] sendData = challenge.getBytes();
         sendHeader.setChecksum(sendData);
@@ -425,7 +425,7 @@ public class RXPServer extends Thread {
 //        int receiveSeqNum = receiveHeader.getSeqNum();
 
         // Check Hash
-        System.out.println("Source port 2: " + receiveHeader.getSource());
+        //System.out.println("Source port 2: " + receiveHeader.getSource());
         String serverChallenge = challengeMap.get(receiveHeader.getSource());
 
         System.out.println("Challenge: " + serverChallenge + " was taken from hashmap");
