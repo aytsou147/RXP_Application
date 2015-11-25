@@ -457,11 +457,6 @@ public class RXPClient {
      */
     public void clientDisconnect() {
         System.out.println("Beginning disconnection from client side");
-        //while loop:
-        // send fin packet to server
-        //receive packet
-        //check for fin ack
-        //timeout, send fin packet again
         RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
         finHeader.setFlags(false, false, true, false, true, false); // FIN.
         byte[] sendData = new byte[DATA_SIZE];
@@ -472,6 +467,8 @@ public class RXPClient {
 
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
+        // send fin packet to server
+        //if we recieve a FIN ACK, we're done and we can close.
         int tries = 0;
         state = ClientState.CLOSE_REQ;
         while (true) {
@@ -490,12 +487,14 @@ public class RXPClient {
                     continue;
                 }
 
+                //check for fin ack
                 if (receiveHeader.isACK() && receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged close with FIN ACK");
                     state = ClientState.CLOSED;
                     break;
                 }
             } catch (SocketTimeoutException es) {
+                //timeout, send fin packet again
                 System.out.println("Timeout, resending");
                 if (tries++ >= 5) {
                     System.out.println("Unsuccessful request.");
