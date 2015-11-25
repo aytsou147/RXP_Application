@@ -81,7 +81,7 @@ public class RXPClient {
         } catch (SocketException e1) {
             e1.printStackTrace();
         }
-        System.out.printf("Timer of %d setup.\n", timeout);
+        //System.out.printf("Timer of %d setup.\n", timeout);
 
         int tries = 0;
         state = ClientState.SYN_SENT;
@@ -105,7 +105,7 @@ public class RXPClient {
 
                 // Assuming valid and SYN, ACK
                 if (receiveHeader.isACK() && receiveHeader.isSYN() && !receiveHeader.isFIN()) {
-                    System.out.println("Received challenge");
+                    //System.out.println("Received challenge");
                     break;
                 }
             } catch (SocketTimeoutException s) {
@@ -130,7 +130,7 @@ public class RXPClient {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        System.out.printf("Working with challenge:%s\n", bytesAsString);
+        //System.out.printf("Working with challenge:%s\n", bytesAsString);
 
         byte[] datahash = RXPHelpers.getHash(challenge);
         hashHeader.setWindow(datahash.length);
@@ -139,7 +139,7 @@ public class RXPClient {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        System.out.printf("Setting up hash of %s\n", bytesAsString);
+        //System.out.printf("Setting up hash of %s\n", bytesAsString);
         hashHeader.setChecksum(datahash);
         // Make the packet
         DatagramPacket hashPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, hashHeader, datahash);
@@ -184,7 +184,6 @@ public class RXPClient {
      *
      */
     public boolean sendName(String fileName) {
-        System.out.println("Attempting to send filename to upload to server");
         RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
         nameHeader.setFlags(false, false, false, false, true, false); // POST.
         byte[] sendData = fileName.getBytes(Charset.forName("UTF-8"));
@@ -195,7 +194,7 @@ public class RXPClient {
 
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
-        System.out.println(fileName);
+        System.out.printf("Sending filename: %s", fileName);
 
         int tries = 0;
         while (true) {
@@ -219,7 +218,7 @@ public class RXPClient {
                 }
 
                 if (receiveHeader.isACK() && receiveHeader.isPOST() && !receiveHeader.isFIN()) {
-                    System.out.println("Server acknowledged the filename.");
+                    //System.out.println("Server acknowledged the filename.");
                     break;
                 }
             } catch (SocketTimeoutException es) {
@@ -309,7 +308,7 @@ public class RXPClient {
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
             data_length = bytesRemaining;
             header.setFlags(false, false, false, false, false, true); // LAST flag
-            System.out.println("Creating LAST packet");
+            //System.out.println("Creating LAST packet");
         } else {
             data_length = DATA_SIZE;
         }
@@ -352,7 +351,6 @@ public class RXPClient {
                 System.out.println("Sending: " + seqNum + ", " + ackNum);
 
                 clientSocket.send(requestPacket);
-                System.out.println("Sent");
 
                 clientSocket.receive(receivePacket);
                 receiveHeader = RXPHelpers.getHeader(receivePacket);
@@ -370,8 +368,8 @@ public class RXPClient {
                 }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 
-                System.out.println("Receiving: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
-                System.out.println("Global: " + seqNum + ", " + ackNum);
+                //System.out.println("Receiving: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
+                //System.out.println("Global: " + seqNum + ", " + ackNum);
 
 //                boolean isLast = receiveHeader.isLAST();
                 // Assuming valid and acked
@@ -381,7 +379,7 @@ public class RXPClient {
                 }
 
                 if (ackNum == receiveHeader.getSeqNum()) {
-                    System.out.println("Right packet");
+                    //System.out.println("Right packet");
                     requestPacket = receiveDataPacket(receivePacket, currPacket);
                     currPacket++;
                 }
