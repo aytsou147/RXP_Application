@@ -81,7 +81,7 @@ public class RXPClientApplication {
                                     boolean success = false;
                                     byte[] file = RXPHelpers.getFileBytes(filePath);
                                     if (file != null) {
-                                        if (client.sendName(fileName)) {
+                                        if (client.sendFileNameUpload(fileName)) {
                                             success = client.upload(RXPHelpers.getFileBytes(filePath));
                                         }
                                     } else {
