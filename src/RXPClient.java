@@ -430,7 +430,7 @@ public class RXPClient {
         if (receiveHeader.isLAST()) {
             ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
         } else {
-            ackHeader.setFlags(true, false, false, true, false, false);    // ACK
+            ackHeader.setFlags(true, false, false, false, false, false);    // ACK
         }
 
         byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
@@ -452,7 +452,6 @@ public class RXPClient {
         finHeader.setChecksum(sendData);
         // Make the packet
         DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
-
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
         // send fin packet to server
