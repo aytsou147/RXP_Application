@@ -44,7 +44,7 @@ public class RXPClient {
     /**
      * performs handshake
      *
-     *
+     *@return success/failure
      */
     public boolean setupRXP() {
 
@@ -155,7 +155,7 @@ public class RXPClient {
 
     /**
      * sends name to server to prep server to receive upload
-     *@param fileName of file client is going to send
+     * @param fileName of file client is going to send
      * @return success/failure
      */
     public boolean sendFileNameUpload(String fileName) {
@@ -210,6 +210,8 @@ public class RXPClient {
 
     /**
      * starts and carries out upload transfer
+     * @param file byte array of the file that will be split into pieces for sending
+     * @return success/failure
      */
     public boolean upload(byte[] file) {
         fileData = file;
@@ -267,6 +269,8 @@ public class RXPClient {
 
     /**
     * creates packets of indexed bytes of file
+     * @param initByteIndex tells function what relative index to make packet for
+     * @return DatagramPacket with segmented data at specified index
      */
     private DatagramPacket formDataPacket(int initByteIndex) {
         System.out.printf("Creating data packet # %d \n", initByteIndex);
@@ -293,7 +297,8 @@ public class RXPClient {
 
     /**
      * request download of specified filename and carry out download
-     * GET
+     * @param fileName of file to request
+     * @return success/failure
      */
     public boolean download(String fileName) {
         //Send GET packet with filename
@@ -384,6 +389,9 @@ public class RXPClient {
 
     /**
      * take received packets into byte array collection and prepare ack packet
+     * @param receivePacket packet data to analyze
+     * @param receivePacket the value we want to ACK back for next packet
+     * @return DatagramPacket of packet with ack for this data
      */
     private DatagramPacket receiveData(DatagramPacket receivePacket, int nextPacketNum) {
         RXPHeader headerResponse = RXPHelpers.getHeader(receivePacket);
@@ -461,7 +469,7 @@ public class RXPClient {
     }
 
     /**
-     *
+     * respond to server disconnection request
      */
     private void serverDisconnect() {
         state = ClientState.CLOSE_WAIT;
