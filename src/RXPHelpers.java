@@ -124,7 +124,7 @@ public class RXPHelpers {
     public static int calcChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
-        System.out.printf("Made checksum: %d\n", (int) result.getValue());
+        //System.out.printf("Made checksum: %d\n", (int) result.getValue());
         return (int) (result.getValue() >>> 32) + (int) result.getValue();
 //        return (int) result.getValue();
     }
