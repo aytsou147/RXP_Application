@@ -30,6 +30,9 @@ public class RXPServer extends Thread {
 
     private HashMap<Integer, String> challengeMap = new HashMap<>();
 
+    private boolean closeReq = false;
+    private boolean isBusy = false;
+
     // Default constructor
     public RXPServer() {
         bytesReceived = new ArrayList<> ();
@@ -135,15 +138,25 @@ public class RXPServer extends Thread {
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
                 if (receiveHeader.isGET()) {
-                     if (sendFile(receivePacket)) {
-                         System.out.println("Sent file!");
-                     } else {
-                         System.out.println("Failed to send file");
-                     }
+                    isBusy = true;
+                    if (sendFile(receivePacket)) {
+                        System.out.println("Sent file!");
+                        if (closeReq) {
+                            System.exit(1);
+                        }
+                    } else {
+                        System.out.println("Failed to send file");
+                    }
+                    isBusy = false;
                 }
 
                 if (receiveHeader.isPOST()) {
+                    isBusy = true;
                     receiveFile(receivePacket);
+                    if (closeReq) {
+                        System.exit(1);
+                    }
+                    isBusy = false;
                 }
             } catch (SocketTimeoutException s) {
                 System.out.println("Timed out");
@@ -280,9 +293,9 @@ public class RXPServer extends Thread {
                     continue;
                 }
 
-                if (receiveHeader.isFIN()) {    //client wants to terminate
-                    tearDown();
-                }
+//                if (receiveHeader.isFIN()) {    //client wants to terminate
+//                    tearDown();
+//                }
 
                 if (receiveHeader.isACK() && receiveHeader.isLAST()) {
                     break;
@@ -447,7 +460,10 @@ public class RXPServer extends Thread {
     }
 
     public boolean terminate() {
-        System.out.println("TERMINATE!!!!!");
+        if (isBusy) {
+            closeReq = true;
+            return false;
+        }
         return true;
     }
 
