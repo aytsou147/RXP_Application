@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -88,7 +89,6 @@ public class RXPServer {
                     continue;
                 }
 
-
                 // HANDSHAKE PT 1: Receive SYN, send SYN+ACK and challenge string
                 if (receiveHeader.isSYN() && !receiveHeader.isACK()) {
                     sendChallenge(receiveHeader);
@@ -107,7 +107,6 @@ public class RXPServer {
         }
 
         while (state == ServerState.ESTABLISHED) {
-
             try {
                 serverSocket.receive(receivePacket);
                 System.out.println("Packet received");
@@ -117,10 +116,10 @@ public class RXPServer {
                     System.out.println("Dropping invalid packet");
                     continue;
                 }
-                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
-                    System.out.println("Dropping packet of incorrect ports");
-                    continue;
-                }
+//                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+//                    System.out.println("Dropping packet of incorrect ports");
+//                    continue;
+//                }
 
                 RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
@@ -144,7 +143,71 @@ public class RXPServer {
     }
 
     private boolean receiveFile(DatagramPacket receivePacket) {
-        return true;
+        // Get received packet info
+        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+        byte[] filePath = RXPHelpers.extractData(receivePacket); //get the data from the packet
+
+        String fileString = null;
+        try {
+            fileString = new String(filePath, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, ackNum);
+        sendHeader.setFlags(true, false, false, false, true, false); // ACK, POST
+
+        byte[] sendData = new byte[DATA_SIZE];
+
+        sendHeader.setChecksum(sendData);
+        sendHeader.setWindow(sendData.length);
+
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
+
+        int currPacket = 0;
+        int tries = 0;
+        boolean finDownload = false;
+        bytesReceived = new ArrayList<byte[]>();
+
+        while (true) {
+            try {
+                serverSocket.send(sendPacket);
+                serverSocket.receive(receivePacket);
+
+                receiveHeader = RXPHelpers.getHeader(receivePacket);
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+
+                if (ackNum == receiveHeader.getSeqNum()) {
+                    System.out.println("Correct packet");
+                    sendPacket = receiveDataPacket(receivePacket, currPacket);
+                    currPacket++;
+                }
+
+                if (receiveHeader.isLAST()) {
+                    finDownload = true;
+                }
+            } catch (SocketTimeoutException s) {
+                if (finDownload) {
+                    break;
+                }
+
+                System.out.println("Timeout, resending..");
+                if (tries++ >= 5) {
+                    System.out.println("Download could not be started");
+                    return false;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("Finished downloading");
+        boolean resultOfAssemble = RXPHelpers.assembleFile(bytesReceived, fileString);
+        fileData = null;
+        bytesReceived = new ArrayList<byte[]>();
+        return resultOfAssemble;
     }
 
     /**
@@ -252,13 +315,41 @@ public class RXPServer {
         return RXPHelpers.preparePacket(clientIpAddress, clientNetPort, header, data);
     }
 
+    /*
+    * take received packets into byte array collection and prepare ack packet
+    */
+    private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum) throws IOException {
+        RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+        // extracts and adds data to ArrayList of byte[]s
+        byte[] data = RXPHelpers.extractData(receivePacket);
+        bytesReceived.add(data);
+
+        ackNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
+        seqNum = receiveHeader.getAckNum();
+        RXPHeader ackHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, ackNum);
+        if (receiveHeader.isLAST()) {
+            ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
+            System.out.println("Creating LAST ACK packet");
+        } else {
+            ackHeader.setFlags(true, false, false, true, false, false);    // ACK
+        }
+
+        byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array(); //TODO what is this for
+        ackHeader.setChecksum(dataBytes);
+        ackHeader.setWindow(dataBytes.length);
+
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, ackHeader, dataBytes);
+        return sendPacket;
+    }
+
     /**
      * After receiving the connection request (SYN), sends a SYN+ACK packet with a 32-bit challenge string in its data
      * @throws IOException
      */
     private void sendChallenge(RXPHeader receiveHeader) throws IOException {
         // Set up the header
-        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientNetPort, 0, 0);
+        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientRXPPort, 0, 0);
         sendHeader.setFlags(true, true, false, false, false, false); // ACK, SYN
 
         // Set up the data
@@ -320,6 +411,8 @@ public class RXPServer {
             RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientNetPort, seqNum, sendAckNum);
             sendHeader.setFlags(true, false, false, false, false, false); // ACK
             byte[] sendData = new byte[DATA_SIZE];
+            sendHeader.setChecksum(sendData);
+            sendHeader.setWindow(sendData.length);
             DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
             serverSocket.send(sendPacket);
             state = ServerState.ESTABLISHED;

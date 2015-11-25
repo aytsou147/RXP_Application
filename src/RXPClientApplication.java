@@ -77,17 +77,19 @@ public class RXPClientApplication {
                                 }
                                 break;
                             }
-                            case "post": {
+                            case "put": {
                                 if (split.length > 1) {
                                     String fileName = split[1];
 
                                     String filePath = System.getProperty("user.dir") + "/" + fileName;
+                                    System.out.println(fileName);
                                     System.out.println(filePath);
                                     boolean success = false;
                                     byte[] file = RXPHelpers.getFileBytes(filePath);
                                     if (file != null) {
-                                        client.sendName(fileName);
-                                        success = client.upload(RXPHelpers.getFileBytes(filePath));
+                                        if (client.sendName(fileName)) {
+                                            success = client.upload(RXPHelpers.getFileBytes(filePath));
+                                        }
                                     } else {
                                         System.out.println("File does not exist");
                                     }
@@ -99,7 +101,7 @@ public class RXPClientApplication {
                                     }
 
                                 } else {
-                                    System.err.println("You need another argument after get");
+                                    System.err.println("You need another argument after put");
                                 }
                                 break;
                             }
@@ -111,11 +113,11 @@ public class RXPClientApplication {
                                     if (!downloaded) {
                                         System.out.println("File didn't download");
                                     } else {
-                                        System.out.println("Successfully uploaded");
+                                        System.out.println("Successfully downloaded");
                                     }
 
                                 } else {
-                                    System.err.println("You need another argument after post");
+                                    System.err.println("You need another argument after get");
                                 }
                                 break;
                             }
