@@ -23,6 +23,7 @@ public class RXPClient {
     private int seqNum, ackNum, windowSize;
     private byte[] fileData;
     private ArrayList<byte[]> bytesReceived;
+    private boolean closeRequested = false;
 
     public RXPClient() {
         this.clientPort = 3251;
@@ -223,6 +224,10 @@ public class RXPClient {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
+                if (receiveHeader.isFIN()) {    //server wants to terminate
+                    closeRequested = true;
+                    continue;
+                }
 
                 if (receiveHeader.isACK() && receiveHeader.isPOST() && !receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged the filename.");
@@ -239,6 +244,7 @@ public class RXPClient {
                 return false;
             }
         }
+        if (closeRequested) serverDisconnect();
         return true;
     }
 
@@ -270,7 +276,8 @@ public class RXPClient {
                     continue;
                 }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
-                    clientDisconnect();
+                    closeRequested = true;
+                    continue;
                 }
 
                 if (receiveHeader.isACK() && receiveHeader.isLAST()) {
@@ -294,6 +301,7 @@ public class RXPClient {
             }
         }
         fileData = null;
+        if (closeRequested) serverDisconnect();
         return true;
     }
 
@@ -368,6 +376,10 @@ public class RXPClient {
                     System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
+                if (receiveHeader.isFIN()) {    //server wants to terminate
+                    closeRequested = true;
+                    continue;
+                }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 
                 System.out.println("Receiving: " + receiveHeader.getSeqNum() + ", " + receiveHeader.getAckNum());
@@ -409,6 +421,7 @@ public class RXPClient {
         boolean resultOfAssemble = RXPHelpers.assembleFile(bytesReceived, fileName);
         fileData = null;
         bytesReceived = new ArrayList<byte[]>();
+        if (closeRequested) serverDisconnect();
         return resultOfAssemble;
     }
 
@@ -492,6 +505,55 @@ public class RXPClient {
             }
         }
 
+        //System.exit(0);
+    }
+
+
+    public void serverDisconnect() {
+        state = ClientState.CLOSE_WAIT;
+        System.out.println("Beginning disconnection from client side");
+        //while loop:
+        // send fin packet to server
+        //receive packet
+        //check for fin ack
+        //timeout, send fin packet again
+        RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
+        finHeader.setFlags(true, false, true, false, true, false); // FIN. ACK
+        byte[] sendData = new byte[DATA_SIZE];
+        finHeader.setWindow(sendData.length);
+        finHeader.setChecksum(sendData);
+        // Make the packet
+        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
+
+        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
+        while (true) {
+            try {
+                clientSocket.send(sendingPacket);
+                clientSocket.receive(receivePacket);
+
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                    continue;
+                }
+
+                if (receiveHeader.isFIN()) {
+                    continue;
+                }
+            } catch (SocketTimeoutException es) {
+                System.out.println("Timeout into close.");
+                break;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        state = ClientState.CLOSED;
         //System.exit(0);
     }
 

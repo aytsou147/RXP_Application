@@ -123,12 +123,16 @@ public class RXPClientApplication {
                             }
                         }
                     } else if (s.equalsIgnoreCase("disconnect")) {
+                        if (client.getClientState() == ClientState.CLOSED) {
+                            System.out.println("Connection does not exist.");
+                            scan.close();
+                            System.exit(0);
+                        }
                         System.out.println("Disconnecting...");
                         client.clientDisconnect();
                         scan.close();
                         System.exit(0);
-//                        while (client.getClientState() != ClientState.CLOSED) {
-//                        }
+
                     } else {
                         System.err.println("Invalid command.");
                         System.exit(1);
