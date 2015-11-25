@@ -88,6 +88,7 @@ public class RXPServer {
                     continue;
                 }
 
+
                 // HANDSHAKE PT 1: Receive SYN, send SYN+ACK and challenge string
                 if (receiveHeader.isSYN() && !receiveHeader.isACK()) {
                     sendChallenge(receiveHeader);
@@ -106,6 +107,7 @@ public class RXPServer {
         }
 
         while (state == ServerState.ESTABLISHED) {
+
             try {
                 serverSocket.receive(receivePacket);
                 System.out.println("Packet received");
@@ -113,6 +115,10 @@ public class RXPServer {
                 //Checksum validation
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping invalid packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, serverPort, clientRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 
