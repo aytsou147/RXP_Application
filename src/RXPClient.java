@@ -460,6 +460,7 @@ public class RXPClient {
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
         int tries = 0;
+        state = ClientState.CLOSE_REQ;
         while (true) {
             try {
                 clientSocket.send(sendingPacket);
@@ -478,6 +479,7 @@ public class RXPClient {
 
                 if (receiveHeader.isACK() && receiveHeader.isFIN()) {
                     System.out.println("Server acknowledged close with FIN ACK");
+                    state = ClientState.CLOSED;
                     break;
                 }
             } catch (SocketTimeoutException es) {

@@ -55,11 +55,6 @@ public class RXPClientApplication {
             String s = "";
 
             while ((System.currentTimeMillis() >= end)) {
-                if (connected) {
-                    if (client.getClientState() == ClientState.CLOSE_REQ || client.getClientState() == ClientState.CLOSE_WAIT) {
-                        System.out.println("Connection Terminating");
-                    }
-                }
                 s = "";
                 if (bufferedReader.ready()) {
                     s += bufferedReader.readLine();
