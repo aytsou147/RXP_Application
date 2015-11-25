@@ -20,22 +20,23 @@ public class RXPClient {
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
 
-    private int seqNum, ackNum, windowSize;
+    private int seqNum;
+    private int ackNum;
     private byte[] fileData;
     private ArrayList<byte[]> bytesReceived;
     private boolean closeRequested = false;
 
-    public RXPClient() {
-        this.clientPort = 3251;
-        this.serverNetPort = 3252;
-        try {
-            this.clientIpAddress = InetAddress.getLocalHost();
-            this.serverIpAddress = InetAddress.getLocalHost();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        state = ClientState.CLOSED;
-    }
+//    public RXPClient() {
+//        this.clientPort = 3251;
+//        this.serverNetPort = 3252;
+//        try {
+//            this.clientIpAddress = InetAddress.getLocalHost();
+//            this.serverIpAddress = InetAddress.getLocalHost();
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        }
+//        state = ClientState.CLOSED;
+//    }
 
     public RXPClient(int clientPort, String serverIpAddress, int serverNetPort) {
         this.clientPort = clientPort;
@@ -56,7 +57,7 @@ public class RXPClient {
     /**
      * performs handshake
      *
-     * @throws IOException
+     *
      */
     public boolean setupRXP() {
 
@@ -190,7 +191,7 @@ public class RXPClient {
         return true;
     }
 
-    /*
+    /**
      * sends name to server to prep server to receive upload
      *
      */
@@ -305,7 +306,7 @@ public class RXPClient {
         return true;
     }
 
-    /*
+    /**
     * creates packets of indexed bytes of file
      */
     private DatagramPacket createDataPacket(int initByteIndex) {
@@ -330,11 +331,10 @@ public class RXPClient {
         header.setChecksum(data);
 
         // Make the packet
-        DatagramPacket dataPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, header, data);
-        return dataPacket;
+        return RXPHelpers.preparePacket(serverIpAddress, serverNetPort, header, data);
     }
 
-    /*
+    /**
      * request download of specified filename and carry out download
      * GET
      */
@@ -425,10 +425,10 @@ public class RXPClient {
         return resultOfAssemble;
     }
 
-    /*
+    /**
      * take received packets into byte array collection and prepare ack packet
      */
-    private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum) throws IOException {
+    private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum) {
         RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
 
         // extracts and adds data to ArrayList of byte[]s
@@ -507,8 +507,10 @@ public class RXPClient {
         //System.exit(0);
     }
 
-
-    public void serverDisconnect() {
+    /**
+     *
+     */
+    private void serverDisconnect() {
         state = ClientState.CLOSE_WAIT;
         System.out.println("Beginning disconnection from client side");
         //while loop:
@@ -542,7 +544,6 @@ public class RXPClient {
                 }
 
                 if (receiveHeader.isFIN()) {
-                    continue;
                 }
             } catch (SocketTimeoutException es) {
                 System.out.println("Timeout into close.");
@@ -556,6 +557,9 @@ public class RXPClient {
         //System.exit(0);
     }
 
+    /**
+     * @return client state
+     */
     public ClientState getClientState() {
         return state;
     }
