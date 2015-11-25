@@ -121,20 +121,7 @@ public class RXPClientApplication {
                                 }
                                 break;
                             }
-                            case "window": {
-                                if (split.length > 1) {
-                                    try {
-                                        System.out.printf("Previous window size was: %d \n", client.getWindowSize());
-                                        int size = Integer.parseInt(split[1]);
-                                        client.setWindowSize(size);  //change client's window size
-                                    } catch (NumberFormatException e) {
-                                        System.err.println("Invalid win size.");
-                                    }
-                                } else {
-                                    System.err.println("You need another argument after window");
-                                }
-                                break;
-                            }
+
                             default: {
                                 System.err.println("Invalid command");
                                 break;

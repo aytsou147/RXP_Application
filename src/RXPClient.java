@@ -443,19 +443,57 @@ public class RXPClient {
      * Disconnect connection from client
      */
     public void clientDisconnect() {
-        System.out.println("Shutting down");
-        System.exit(0);
+        System.out.println("Beginning disconnection from client side");
+        //while loop:
+        // send fin packet to server
+        //receive packet
+        //check for fin ack
+        //timeout, send fin packet again
+        RXPHeader finHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
+        finHeader.setFlags(false, false, true, false, true, false); // FIN.
+        byte[] sendData = new byte[DATA_SIZE];
+        finHeader.setWindow(sendData.length);
+        finHeader.setChecksum(sendData);
+        // Make the packet
+        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, finHeader, sendData);
+
+        DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
+
+        int tries = 0;
+        while (true) {
+            try {
+                clientSocket.send(sendingPacket);
+                clientSocket.receive(receivePacket);
+
+                RXPHeader receiveHeader = RXPHelpers.getHeader(receivePacket);
+
+                if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
+                    System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                    continue;
+                }
+
+                if (receiveHeader.isACK() && receiveHeader.isFIN()) {
+                    System.out.println("Server acknowledged close with FIN ACK");
+                    break;
+                }
+            } catch (SocketTimeoutException es) {
+                System.out.println("Timeout, resending");
+                if (tries++ >= 5) {
+                    System.out.println("Unsuccessful request.");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        //System.exit(0);
     }
 
     public ClientState getClientState() {
         return state;
     }
 
-    public int getWindowSize() {
-        return windowSize;
-    }
-
-    public void setWindowSize(int window) {
-        this.windowSize = window;
-    }
 }
