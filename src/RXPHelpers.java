@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.nio.file.Files;
@@ -20,22 +21,48 @@ public class RXPHelpers {
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE = 496;
     private static final int HEADER_SIZE = 16;
-    private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
-
-    private static byte[] combineHeaderData(byte[] headerBytes, byte[] data) {
-
-        byte[] packetBytes = new byte[PACKET_SIZE];
-        System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);
-        System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data.length);
-
-        return packetBytes;
+    /**
+     * Sets up the header using passed-in information, EXCEPT for Flags.
+     *
+     * @param srcPort
+     * @param destPort
+     * @param seqNum
+     * @param ackNum
+     * @return header
+     */
+    public static RXPHeader initHeader(int srcPort, int destPort, int seqNum, int ackNum) {
+        RXPHeader header = new RXPHeader();
+        header.setSource(srcPort);
+        header.setDestination(destPort);
+        header.setSeqNum(seqNum);
+        header.setAckNum(ackNum);
+        header.setSegmentLength(DATA_SIZE);
+        return header;
     }
 
-    public static byte[] extractData(DatagramPacket receivePacket) {
+    /**
+     * Prepares a packet by combining the passed-in header and data and putting it in a packet
+     * Data passed-in should already be ready for combining
+     *
+     * @param destIP
+     * @param destPort
+     * @param header
+     * @param data
+     * @return sendPacket
+     */
+    public static DatagramPacket preparePacket(InetAddress destIP, int destPort, RXPHeader header, byte[] data) {
+        byte[] packetBytes = new byte[PACKET_SIZE];
+
+        System.arraycopy(header.getHeaderBytes(), 0, packetBytes, 0, HEADER_SIZE);
+        System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data.length);
+
+        return new DatagramPacket(packetBytes, PACKET_SIZE, destIP, destPort);
+    }
+
+    public static byte[] getData(DatagramPacket receivePacket) {
         RXPHeader receiveHeader = getHeader(receivePacket);
-        int data_length = receiveHeader.getWindow();
-        //TODO what the heck is going on here
+        int data_length = receiveHeader.getSegmentLength();
         byte[] extractedData = new byte[data_length];
         byte[] packet = receivePacket.getData();
 
@@ -44,11 +71,11 @@ public class RXPHelpers {
         return extractedData;
     }
 
-    public static boolean isValidPacketHeader(DatagramPacket packet) {
+    public static boolean passChecksum(DatagramPacket packet) {
         RXPHeader header = getHeader(packet);
         int headerChecksum = header.getChecksum();
-        byte[] data = extractData(packet);
-        int ourChecksum = calcChecksum(data);
+        byte[] data = getData(packet);
+        int ourChecksum = makeChecksum(data);
         //System.out.printf("Comparing received checksum:\n %d to calculated checksum:\n %d\n", headerChecksum, ourChecksum);
         return headerChecksum == ourChecksum;
     }
@@ -91,17 +118,17 @@ public class RXPHelpers {
     public static boolean assembleFile(ArrayList<byte[]> bytesReceived, String fileName) {
         fileName = "downloaded_" + fileName;
 
-        int bufferLength = bytesReceived.size();
-        int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;    // Length of last data
-        int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;    // number of bytes in file
+        int bufferSize = bytesReceived.size();
+        int lastByteArrayLength = bytesReceived.get(bufferSize - 1).length;    // Length of last data
+        int fileSize = (bufferSize - 1) * DATA_SIZE + lastByteArrayLength;    // number of bytes in file
 
         byte[] fileData = new byte[fileSize];
-        for (int i = 0; i < bufferLength - 1; i++) {
+        for (int i = 0; i < bufferSize - 1; i++) {
             System.arraycopy(bytesReceived.get(i), 0, fileData, i * DATA_SIZE, DATA_SIZE);
         }
 
         // Copy last data
-        System.arraycopy(bytesReceived.get(bufferLength - 1), 0, fileData, (bufferLength - 1) * DATA_SIZE, lastByteArrayLength);
+        System.arraycopy(bytesReceived.get(bufferSize - 1), 0, fileData, (bufferSize - 1) * DATA_SIZE, lastByteArrayLength);
 
         String fileDir = System.getProperty("user.dir") + "/" + fileName;
 
@@ -121,7 +148,7 @@ public class RXPHelpers {
         return true;
     }
 
-    public static int calcChecksum(byte[] data) {
+    public static int makeChecksum(byte[] data) {
         Checksum result = new CRC32();
         result.update(data, 0, data.length);
         //System.out.printf("Made checksum: %d\n", (int) result.getValue());
@@ -129,47 +156,12 @@ public class RXPHelpers {
 //        return (int) result.getValue();
     }
 
-    /**
-     * Sets up the header using passed-in information, EXCEPT for Flags.
-     *
-     * @param srcPort
-     * @param destPort
-     * @param seqNum
-     * @param ackNum
-     * @return header
-     */
-    public static RXPHeader initHeader(int srcPort, int destPort, int seqNum, int ackNum) {
-        RXPHeader header = new RXPHeader();
-        header.setSource(srcPort);
-        header.setDestination(destPort);
-        header.setSeqNum(seqNum);
-        header.setAckNum(ackNum % MAX_SEQ_NUM);
-        header.setWindow(DATA_SIZE);
-
-        return header;
-    }
-
-    /**
-     * Prepares a packet by combining the passed-in header and data and putting it in a packet
-     * Data passed-in should already be ready for combining
-     *
-     * @param destIP
-     * @param destPort
-     * @param header
-     * @param data
-     * @return sendPacket
-     */
-    public static DatagramPacket preparePacket(InetAddress destIP, int destPort, RXPHeader header, byte[] data) {
-        byte[] headerBytes = header.getHeaderBytes();
-        byte[] packet = RXPHelpers.combineHeaderData(headerBytes, data);
-
-        //        System.out.println(destPort);
-        return new DatagramPacket
-            (
-                packet,
-                PACKET_SIZE,
-                    destIP,
-                    destPort
-            );
+    public static String btyeArrToStr(byte[] bytes) {
+        try {
+            return new String(bytes, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return "";
+        }
     }
 }

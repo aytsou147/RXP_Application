@@ -6,7 +6,7 @@ public class RXPHeader {
     private static final int DST = 2;
     private static final int SEQ = 4;
     private static final int ACK = 6;
-    private static final int WIN = 8;
+    private static final int SEGLEN = 8;
     private static final int FLAG = 10;
     private static final int CHECKSUM = 12; //is four bytes
 
@@ -63,13 +63,13 @@ public class RXPHeader {
         header[ACK + 1] = (byte) (ackNum & 0x000000FF);
     }
 
-    public int getWindow() {
-        return header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF;
+    public int getSegmentLength() {
+        return header[SEGLEN] << 8 & 0xFF00 | header[SEGLEN + 1] & 0x00FF;
     }
 
-    public void setWindow(int windowSize) {
-        header[WIN] = (byte) ((windowSize & 0xFF00) >> 8);
-        header[WIN + 1] = (byte) (windowSize & 0x00FF);
+    public void setSegmentLength(int segmentLength) {
+        header[SEGLEN] = (byte) ((segmentLength & 0xFF00) >> 8);
+        header[SEGLEN + 1] = (byte) (segmentLength & 0x00FF);
     }
 
     public void setFlags(boolean ACK, boolean SYN, boolean FIN, boolean GET, boolean POST, boolean LAST) {
@@ -116,7 +116,7 @@ public class RXPHeader {
     }
 
     public void setChecksum(byte[] data) {
-        int checksum = RXPHelpers.calcChecksum(data);
+        int checksum = RXPHelpers.makeChecksum(data);
         header[CHECKSUM] = (byte) (checksum >> 24);
         header[CHECKSUM + 1] = (byte) (checksum >> 16);
         header[CHECKSUM + 2] = (byte) (checksum >> 8);
