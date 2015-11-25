@@ -8,6 +8,7 @@ public class RXPClient {
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE = 496;
     private static final int SEQ_NUM_MAX = 65536; //2^16, or max of 2 bytes
+    private static final int MAX_TRIES = 5;
 
     private ClientState state;
 
@@ -98,7 +99,7 @@ public class RXPClient {
                 }
             } catch (SocketTimeoutException s) {
                 System.out.println("Timeout: resend");
-                if (tries++ >= 5) {
+                if (tries++ >= MAX_TRIES) {
                     System.out.println("Unsuccessful connect");
                     return false;
                 }
@@ -133,15 +134,15 @@ public class RXPClient {
 
                 // Assuming valid and ACK
                 if (receiveHeader.isACK() && !receiveHeader.isFIN()) {
-                    System.out.println("Established");
+                    System.out.println("Established connection");
                     state = ClientState.ESTABLISHED;
                     serverRXPPort = receiveHeader.getSource();
                     break;
                 }
             } catch (SocketTimeoutException s) {
-                System.out.println("Timeout, resending..");
-                if (tries++ >= 5) {
-                    System.out.println("Unsuccessful Connection");
+                System.out.println("Timeout: resend");
+                if (tries++ >= MAX_TRIES) {
+                    System.out.println("Connection failed");
                     return false;
                 }
             } catch (IOException e) {
@@ -193,9 +194,9 @@ public class RXPClient {
                     break;
                 }
             } catch (SocketTimeoutException es) {
-                System.out.println("Timeout, resending");
-                if (tries++ >= 5) {
-                    System.out.println("Unsuccessful Connection");
+                System.out.println("Timeout: resend");
+                if (tries++ >= MAX_TRIES) {
+                    System.out.println("Connection failed");
                     return false;
                 }
             } catch (IOException e) {
@@ -364,7 +365,7 @@ public class RXPClient {
                 }
 
                 System.out.println("Timeout, resending..");
-                if (tries++ >= 5) {
+                if (tries++ >= MAX_TRIES) {
                     System.out.println("Download could not be started");
                     return false;
                 }
@@ -450,7 +451,7 @@ public class RXPClient {
             } catch (SocketTimeoutException es) {
                 //timeout, send fin packet again
                 System.out.println("Timeout, resending");
-                if (tries++ >= 5) {
+                if (tries++ >= MAX_TRIES) {
                     System.out.println("Unsuccessful request.");
                 }
             } catch (IOException e) {
