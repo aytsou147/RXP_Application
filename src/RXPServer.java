@@ -7,17 +7,15 @@ import java.util.*;
  * RXP Server
  */
 public class RXPServer {
-    private static final int CHECKSUM 	 = 13566144;
-    private static final int PRECHECKSUM = 3251;
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE   = 496;
-    private static final int HEADER_SIZE = 20;
     private static final int MAX_SEQ_NUM = (int) 0xFFFF;
 
     private DatagramSocket serverSocket;
     private DatagramPacket sendPacket, receivePacket;
     private InetAddress serverIpAddress, clientIpAddress;
-    private int serverPort, clientPort;
+    private int serverPort, clientNetPort;
+    private int clientRXPPort;
 
     private int windowSize;
     private Random rand;
@@ -44,11 +42,11 @@ public class RXPServer {
         state = ServerState.CLOSED;
     }
 
-    public RXPServer(int serverPort, String clientIpAddress, int clientPort){
+    public RXPServer(int serverPort, String clientIpAddress, int clientNetPort) {
 
         bytesReceived = new ArrayList<>();
         this.serverPort = serverPort;
-        this.clientPort = clientPort;
+        this.clientNetPort = clientNetPort;
         try {
 //            this.serverIpAddress = InetAddress.getLocalHost();
             this.serverIpAddress = InetAddress.getByName("127.0.0.1");
@@ -229,7 +227,7 @@ public class RXPServer {
         int byteLocation = initByteIndex * DATA_SIZE;
         int bytesRemaining = fileData.length - byteLocation;
 
-        RXPHeader header = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
+        RXPHeader header = RXPHelpers.initHeader(serverPort, clientRXPPort, seqNum, ackNum);
 
         int data_length;
         if (bytesRemaining <= DATA_SIZE) { //utilized for last segment of data
@@ -245,7 +243,7 @@ public class RXPServer {
         System.arraycopy(fileData, initByteIndex * DATA_SIZE, data, 0, data_length);
         header.setChecksum(data);
 
-        return RXPHelpers.preparePacket(clientIpAddress, clientPort, header, data);
+        return RXPHelpers.preparePacket(clientIpAddress, clientNetPort, header, data);
     }
 
     /**
@@ -254,7 +252,7 @@ public class RXPServer {
      */
     private void sendChallenge(RXPHeader receiveHeader) throws IOException {
         // Set up the header
-        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientPort, 0, 0);
+        RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientNetPort, 0, 0);
         sendHeader.setFlags(true, true, false, false, false, false); // ACK, SYN
 
         // Set up the data
@@ -268,7 +266,7 @@ public class RXPServer {
         sendHeader.setChecksum(sendData);
         sendHeader.setWindow(sendData.length);
         // Make the packet
-        DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientPort, sendHeader, sendData);
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
 
         // Send packet
         serverSocket.send(sendPacket);
@@ -313,12 +311,13 @@ public class RXPServer {
         // Confirmed match
         if (Arrays.equals(clientHash, serverHash)) {
             // Send ACK packet
-            RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientPort, seqNum, sendAckNum);
+            RXPHeader sendHeader = RXPHelpers.initHeader(serverPort, clientNetPort, seqNum, sendAckNum);
             sendHeader.setFlags(true, false, false, false, false, false); // ACK
             byte[] sendData = new byte[DATA_SIZE];
-            DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientPort, sendHeader, sendData);
+            DatagramPacket sendPacket = RXPHelpers.preparePacket(clientIpAddress, clientNetPort, sendHeader, sendData);
             serverSocket.send(sendPacket);
             state = ServerState.ESTABLISHED;
+            clientRXPPort = receiveHeader.getSource();
         } else {
             // Refuse the connection
             System.out.println("Incorrect Auth");

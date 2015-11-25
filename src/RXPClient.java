@@ -14,20 +14,19 @@ public class RXPClient {
     private ClientState state;
 
     private int clientPort;
-    private int serverPort;
+    private int serverNetPort;
     private int serverRXPPort;
     private InetAddress clientIpAddress;
     private InetAddress serverIpAddress;
     private DatagramSocket clientSocket;
 
-    //private byte[] window = new byte[MAX_SEQ_NUM]; //TODO window sliding
     private int seqNum, ackNum, windowSize;
     private byte[] fileData;
     private ArrayList<byte[]> bytesReceived;
 
     public RXPClient() {
         this.clientPort = 3251;
-        this.serverPort = 3252;
+        this.serverNetPort = 3252;
         try {
             this.clientIpAddress = InetAddress.getLocalHost();
             this.serverIpAddress = InetAddress.getLocalHost();
@@ -37,9 +36,9 @@ public class RXPClient {
         state = ClientState.CLOSED;
     }
 
-    public RXPClient(int clientPort, String serverIpAddress, int serverPort) {
+    public RXPClient(int clientPort, String serverIpAddress, int serverNetPort) {
         this.clientPort = clientPort;
-        this.serverPort = serverPort;
+        this.serverNetPort = serverNetPort;
         try {
 //            this.clientIpAddress = InetAddress.getLocalHost();
             this.clientIpAddress = InetAddress.getByName("127.0.0.1");
@@ -73,12 +72,12 @@ public class RXPClient {
 
         // Setup Initializing Header
 
-        RXPHeader synHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
+        RXPHeader synHeader = RXPHelpers.initHeader(clientPort, serverNetPort, seqNum, ackNum);
         synHeader.setFlags(false, true, false, false, false, false); //setting SYN flag on
         byte[] data = new byte[DATA_SIZE];
         synHeader.setChecksum(data);
         // Make the packet
-        DatagramPacket setupPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, synHeader, data);
+        DatagramPacket setupPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, synHeader, data);
 
 
         // Sending SYN packet and receiving SYN ACK with challenge string
@@ -100,7 +99,7 @@ public class RXPClient {
 //                        + " ClientIP2: " + clientSocket.getInetAddress()
 //                        + clientIpAddress);
 //                System.out.println("Server Port: " + clientSocket.getPort()
-//                        + serverPort);
+//                        + serverNetPort);
 //                System.out.println(setupPacket.getAddress() + ":" + setupPacket.getPort());
 
                 clientSocket.send(setupPacket);
@@ -129,7 +128,7 @@ public class RXPClient {
         }
 
         // Setup hash Header
-        RXPHeader hashHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
+        RXPHeader hashHeader = RXPHelpers.initHeader(clientPort, serverNetPort, seqNum, ackNum);
         hashHeader.setFlags(true, false, false, false, false, false); //setting ACK flag on
         String bytesAsString = null;
         byte[] challenge = RXPHelpers.extractData(receivePacket);
@@ -150,7 +149,7 @@ public class RXPClient {
         System.out.printf("Setting up hash of %s\n", bytesAsString);
         hashHeader.setChecksum(datahash);
         // Make the packet
-        DatagramPacket hashPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, hashHeader, datahash);
+        DatagramPacket hashPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, hashHeader, datahash);
 
 
         // Sending ACK packet with hash and receiving ACK for establishment
@@ -193,13 +192,13 @@ public class RXPClient {
      */
     public void sendName(String s) {
         System.out.println("Attempting to send filename to upload to server");
-        RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverPort, 0, 0);
+        RXPHeader nameHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, 0, 0);
         nameHeader.setFlags(false, false, false, false, true, false); // POST.
         byte[] sendData = s.getBytes(Charset.forName("UTF-8"));
         nameHeader.setWindow(sendData.length);
         nameHeader.setChecksum(sendData);
         // Make the packet
-        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, nameHeader, sendData);
+        DatagramPacket sendingPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, nameHeader, sendData);
 
         DatagramPacket receivePacket = new DatagramPacket(new byte[PACKET_SIZE], PACKET_SIZE);
 
@@ -213,6 +212,10 @@ public class RXPClient {
 
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
+                    continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                     continue;
                 }
 
@@ -254,6 +257,9 @@ public class RXPClient {
                     System.out.println("Dropping invalid packet");
                     continue;
                 }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
+                }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
                     tearDown();
                 }
@@ -286,7 +292,7 @@ public class RXPClient {
         int byteLocation = initByteIndex * DATA_SIZE;
         int bytesRemaining = fileData.length - byteLocation;
 
-        RXPHeader header = RXPHelpers.initHeader(clientPort, serverPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
+        RXPHeader header = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, (ackNum + 1) % MAX_SEQ_NUM);
         //TODO double check the seqNum and ackNum configuration ^
 
         int data_length;
@@ -303,7 +309,7 @@ public class RXPClient {
         header.setChecksum(data);
 
         // Make the packet
-        DatagramPacket dataPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, header, data);
+        DatagramPacket dataPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, header, data);
         return dataPacket;
     }
 
@@ -318,14 +324,14 @@ public class RXPClient {
 
         // Setup Initializing Header
 
-        RXPHeader requestHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
+        RXPHeader requestHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, ackNum);
         requestHeader.setFlags(false, false, false, true, false, false); // GET
         requestHeader.setWindow(fileName.getBytes().length);
         byte[] data = fileName.getBytes();
         requestHeader.setChecksum(data);
 
         // Make the packet
-        DatagramPacket requestPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, requestHeader, data);
+        DatagramPacket requestPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, requestHeader, data);
 
         int currPacket = 0;
         int tries = 0;
@@ -344,6 +350,9 @@ public class RXPClient {
                 if (!RXPHelpers.isValidPacketHeader(receivePacket)) {
                     System.out.println("Dropping corrupted packet");
                     continue;
+                }
+                if (!RXPHelpers.isValidPorts(receivePacket, clientPort, serverRXPPort)) {
+                    System.out.println("Dropping packet of incorrect ports");
                 }
 //				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 
@@ -399,8 +408,7 @@ public class RXPClient {
 
         ackNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
         seqNum = receiveHeader.getAckNum();
-        RXPHeader ackHeader = RXPHelpers.initHeader(clientPort, serverPort, seqNum, ackNum);
-        //TODO ^^ verify acknum and seqnum changes and entries into initHeader
+        RXPHeader ackHeader = RXPHelpers.initHeader(clientPort, serverRXPPort, seqNum, ackNum);
         if (receiveHeader.isLAST()) {
             ackHeader.setFlags(true, false, false, false, false, true); // ACK LAST
         } else {
@@ -411,7 +419,7 @@ public class RXPClient {
         ackHeader.setChecksum(dataBytes);
         ackHeader.setWindow(dataBytes.length);
 
-        DatagramPacket sendPacket = RXPHelpers.preparePacket(serverIpAddress, serverPort, ackHeader, dataBytes);
+        DatagramPacket sendPacket = RXPHelpers.preparePacket(serverIpAddress, serverNetPort, ackHeader, dataBytes);
         return sendPacket;
     }
 
