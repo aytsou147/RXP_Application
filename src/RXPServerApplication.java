@@ -15,7 +15,7 @@ public class RXPServerApplication {
 //    private static final String NETEMUIP = "127.0.0.1";
 //    private static final int NETEMUPORT = 8000;
 //    private static final int SERVERPORT = 3251;
-    private static RXPServer server;
+    public static RXPServer server;
 
     public static void main(String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("fxa-server")) {
@@ -51,37 +51,41 @@ public class RXPServerApplication {
             System.exit(1);
         }
 
-        long end = System.currentTimeMillis();
-        InputStreamReader fileInputStream = new InputStreamReader(System.in);
-        BufferedReader bufferedReader = new BufferedReader(fileInputStream);
+        server.start();
+        RXPServerApplicationInput RXPServerInput = new RXPServerApplicationInput();
+        RXPServerInput.start();
 
-        try {
-            String s = "";
-
-            while((System.currentTimeMillis()>=end)) {
-                s = "";
-                server.connect();
-                if (bufferedReader.ready()) {
-                    s += bufferedReader.readLine();
-                    System.out.println("here");
-
-                    System.out.println(s);
-                    if (s.equalsIgnoreCase("terminate")) {
-                        if (server.terminate()) {
-                            System.out.println("Server termination successful");
-                            System.exit(0);
-                        } else {
-                            System.out.println("Server termination failed");
-                        }
-                    } else {
-                        System.err.println("Invalid command");
-                    }
-                }
-            }
-            bufferedReader.close();
-        } catch (java.io.IOException e) {
-            System.err.println("Server could not be shut down");
-            e.printStackTrace();
-        }
+//        long end = System.currentTimeMillis();
+//        InputStreamReader fileInputStream = new InputStreamReader(System.in);
+//        BufferedReader bufferedReader = new BufferedReader(fileInputStream);
+//
+//        try {
+//            String s = "";
+//
+//            while((System.currentTimeMillis()>=end)) {
+//                s = "";
+//                server.connect();
+//                if (bufferedReader.ready()) {
+//                    s += bufferedReader.readLine();
+//                    System.out.println("here");
+//
+//                    System.out.println(s);
+//                    if (s.equalsIgnoreCase("terminate")) {
+//                        if (server.terminate()) {
+//                            System.out.println("Server termination successful");
+//                            System.exit(0);
+//                        } else {
+//                            System.out.println("Server termination failed");
+//                        }
+//                    } else {
+//                        System.err.println("Invalid command");
+//                    }
+//                }
+//            }
+//            bufferedReader.close();
+//        } catch (java.io.IOException e) {
+//            System.err.println("Server could not be shut down");
+//            e.printStackTrace();
+//        }
     }
 }

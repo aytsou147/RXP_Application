@@ -7,7 +7,7 @@ import java.util.*;
 /**
  * RXP Server
  */
-public class RXPServer {
+public class RXPServer extends Thread {
     private static final int PACKET_SIZE = 512;
     private static final int DATA_SIZE   = 496;
     private static final int MAX_SEQ_NUM = (int) 0xFFFF;
@@ -58,6 +58,12 @@ public class RXPServer {
         state = ServerState.CLOSED;
 //        Random rand = new Random();
 //        seqNum = rand.nextInt(MAX_SEQ_NUM);
+    }
+
+    public void run() {
+        while(true) {
+            connect();
+        }
     }
 
     public void createSocket() {
@@ -238,6 +244,10 @@ public class RXPServer {
         System.out.println(fileString);
 
         fileData = RXPHelpers.getFileBytes(fileString);
+
+        if (fileData == null) {
+            return false;
+        }
 
         int numPackets = (fileData.length / DATA_SIZE);
         if (fileData.length % DATA_SIZE > 0) numPackets += 1; //1 extra packet if there's leftover data
@@ -437,6 +447,7 @@ public class RXPServer {
     }
 
     public boolean terminate() {
+        System.out.println("TERMINATE!!!!!");
         return true;
     }
 

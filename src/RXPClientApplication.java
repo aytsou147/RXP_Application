@@ -142,7 +142,7 @@ public class RXPClientApplication {
                         }
                     } else if (s.equalsIgnoreCase("disconnect")) {
                         System.out.println("Disconnecting...");
-                        client.tearDown();
+                        client.clientDisconnect();
                         scan.close();
                         System.exit(0);
 //                        while (client.getClientState() != ClientState.CLOSED) {

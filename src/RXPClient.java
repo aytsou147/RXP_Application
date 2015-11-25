@@ -271,7 +271,7 @@ public class RXPClient {
                     continue;
                 }
                 if (receiveHeader.isFIN()) {    //server wants to terminate
-                    tearDown();
+                    clientDisconnect();
                 }
 
                 if (receiveHeader.isACK() && receiveHeader.isLAST()) {
@@ -330,6 +330,7 @@ public class RXPClient {
 
     /*
      * request download of specified filename and carry out download
+     * GET
      */
     public boolean download(String fileName) {
         //Send GET packet with filename
@@ -441,9 +442,9 @@ public class RXPClient {
     }
 
     /**
-     * tear down connection
+     * Disconnect connection from client
      */
-    public void tearDown() {
+    public void clientDisconnect() {
         System.out.println("Shutting down");
         System.exit(0);
     }
